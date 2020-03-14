@@ -19,20 +19,20 @@ root.configure(bg='gray')
 #     messagebox.showinfo("Complete", "Data has been uploaded to S3 bucket")
 
 
-class S2P:
+class COV:
 
     def __init__(self, master):
         master.minsize(width=400, height=200)
         self.master = master
         master.title("COVID-19 Data Processor")
 
-        # self.convert_button2 = Button(master, text="Data Upload S3", command=datauploads3, width=25)
+        # self.convert_button2 = Button(master, text="Data Upload S3", command=secondProcess, width=25)
         # self.convert_button2.grid(row=1, column=1)
 
         self.convert_button3 = Button(master, text="COVID-19 RT-qPCR Data Processing", command=self.labProcess, width=25)
         self.convert_button3.grid(row=2, column=1)
 
-    def labProcess(self):
+    def secondProcess(self):
         # TODO: Need to correct phenotype for 2d6 based on CNV
         print('out')
 
@@ -45,8 +45,8 @@ class S2P:
         timestr = time.strftime('%m_%d_%Y')
         outname = os.path.split(path)
         outname1 = outname[0]
-        new_baseAvera = timestr + '_covid.csv'
-        outPathAvera = outname1 + '/' + new_baseAvera
+        new_base = timestr + '_covid.csv'
+        outPath = outname1 + '/' + new_base
 
         # prepare path for the log file
         logName = timestr + '_output_log.txt'
@@ -54,7 +54,7 @@ class S2P:
 
 
         # use this for
-        #     with open(outPathInvenio, 'w') as file:
+        #     with open(outPath, 'w') as file:
         #         for key, value in out_dict.items():
         #             file.write(key + "\t" + value + "\n")
         #
@@ -75,5 +75,5 @@ class S2P:
     # TODO: possibly implement a finer timestamp so reruns would not  be over wrote. Could also check for same name
 
 
-my_gui = S2P(root)
+my_gui = COV(root)
 root.mainloop()
