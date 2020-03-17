@@ -25,9 +25,6 @@ class COV:
         self.master = master
         master.title("COVID-19 Data Processor")
 
-        self.label = Label(master, text="COVID-19 Data Processor")
-        self.label.pack()
-
         self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
                                      command=self.dataprocess, width=45)
         self.convert_button.grid(row=1, column=1)
