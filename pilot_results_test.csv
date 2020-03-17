@@ -1,0 +1,30 @@
+Sample_ID,Result_N1,Result_N2,Result_RP,Result_Interpretation,Report,Actions
+S1,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S10,positive,positive,negative,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S11,positive,negative,positive,Inconclusive Result,Inconclusive,Repeat testing of nucleic acid and/or re-extract and repeat rRT-PCR. If the repeated result remains inconclusive contact your State Public Health Laboratory or CDC for instructions for transfer of the specimen or further guidance.
+S12,positive,negative,negative,Inconclusive Result,Inconclusive,Repeat testing of nucleic acid and/or re-extract and repeat rRT-PCR. If the repeated result remains inconclusive contact your State Public Health Laboratory or CDC for instructions for transfer of the specimen or further guidance.
+S13,negative,positive,positive,Inconclusive Result,Inconclusive,Repeat testing of nucleic acid and/or re-extract and repeat rRT-PCR. If the repeated result remains inconclusive contact your State Public Health Laboratory or CDC for instructions for transfer of the specimen or further guidance.
+S14,negative,positive,negative,Inconclusive Result,Inconclusive,Repeat testing of nucleic acid and/or re-extract and repeat rRT-PCR. If the repeated result remains inconclusive contact your State Public Health Laboratory or CDC for instructions for transfer of the specimen or further guidance.
+S15,negative,negative,positive,2019-nCoV not detected,Not Detected,Report results to sender. Consider testing for other respiratory viruses.
+S16,negative,negative,negative,Invalid Result,Invalid,Repeat extraction and rRT-PCR. If the repeated result remains invalid consider collecting a new specimen from the patient.
+S17,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S18,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S19,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S2,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S20,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S21,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S22,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S23,positive,positive,negative,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S24,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S25,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S26,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S27,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S28,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S29,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S3,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S4,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S5,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S6,negative,negative,positive,2019-nCoV not detected,Not Detected,Report results to sender. Consider testing for other respiratory viruses.
+S7,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S8,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
+S9,positive,positive,positive,2019-nCoV detected,Positive 2019-nCoV,Report results to CDC and sender
