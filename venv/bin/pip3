@@ -1,4 +1,4 @@
-#!/Users/caseyfinnicum/Desktop/avera/covid19/venv/bin/python
+#!/Users/jeffbeck/Desktop/covid19/venv/bin/python
 # EASY-INSTALL-ENTRY-SCRIPT: 'pip==19.0.3','console_scripts','pip3'
 __requires__ = 'pip==19.0.3'
 import re

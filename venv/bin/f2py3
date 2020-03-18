@@ -1,4 +1,4 @@
-#!/Users/caseyfinnicum/Desktop/avera/covid19/venv/bin/python
+#!/Users/jeffbeck/Desktop/covid19/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

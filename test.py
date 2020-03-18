@@ -180,7 +180,7 @@ sf.loc[(sf['Report'] == 'Invalid'), 'Actions'] = 'Repeat extraction and rRT-PCR.
 sf = sf.reset_index()
 
 # Write out final results file for checks.
-# sf.to_csv("final_results_test.csv", sep=',', index=False)
+sf.to_csv("test_final_results.csv", sep=',', index=False)
 sf.to_csv("pilot_results_test.csv", sep=',', index=False)
 
 

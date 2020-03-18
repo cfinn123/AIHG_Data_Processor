@@ -1,10 +1,8 @@
 """
 By: Jeff Beck and Casey Finnicum
 Date of inception: March 16, 2020
-
-Program for determining positive or negative result from 2019-nCoV testing at the Avera Institute for Human Genetics.
+Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics.
 Ingests files from RT-qPCR assay and creates summarized results for upload.
-
 Reference: CDC-006-00019, Revision: 02
 """
 
@@ -14,46 +12,48 @@ import pandas as pd
 import os
 import time
 import logging
+from PIL import ImageTk, Image
 
 root = Tk()
-root.configure(bg='gray')
+root.configure(bg='white')
+
+img = ImageTk.PhotoImage(Image.open("./misc/aihg.gif"))
+panel = Label(root, image=img)
+panel.pack(side="bottom", fill="both", expand="yes")
+
 
 class COV:
-
     def __init__(self, master):
-        master.minsize(width=400, height=200)
+        master.minsize(width=200, height=100)
         self.master = master
         master.title("COVID-19 Data Processor")
 
-        self.label = Label(master, text="COVID-19 Data Processor")
-        self.label.pack()
+        # self.label = Label(master, text="COVID-19 Data Processor", pady=10)
+        # self.label.pack()
 
-        self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
-                                     command=self.dataprocess, width=45)
-        self.convert_button.grid(row=1, column=1)
-
-    # def secondProcess(self):
-        # print('out')
+        self.convert_button = Button(master, text="Select input file",
+                                     command=self.dataprocess, width=13)
+        self.convert_button.pack(pady=10)
 
     def dataprocess(self):
-        ##### Ingest input file
+        # Ingest input file
         # ask the user for an input read in the file selected by the user
         path = filedialog.askopenfilename()
         # read in 'Results' sheet of specified file
-        df = pd.read_excel(path, sheetname='Results', skiprows=42, header=0)
+        df = pd.read_excel(path, sheet_name='Results', skiprows=42, header=0)
         # Convert 'undetermined' to 'NaN' for 'CT' column
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
-        ##### Assess controls
+        # Assess controls
         # Expected performance of controls
         """
         ControlType   ExternalControlName Monitors        2019nCoV_N1 2019nCOV_N2 RnaseP  ExpectedCt
-        Positive      nCoVPC              Rgt Failure     +           +           +       <40 
+        Positive      nCoVPC              Rgt Failure     +           +           +       <40
         Negative      NTC                 Contamination   -           -           -       None
         Extraction    HSC                 Extraction      -           -           +       <40
-        
-        If any of the above controls do not exhibit the expected performance as described, the assay may have been set up
-        and/or executed improperly, or reagent or equipment malfunction could have occurred. Invalidate the run and 
+
+        If any of the above controls do not exhibit the expected performance as described, the assay may have been set
+        up and/or executed improperly, or reagent or equipment malfunction could have occurred. Invalidate the run and
         re-test.
         """
 
@@ -127,15 +127,18 @@ class COV:
                | (df['Sample Name'] == 'nCoVPC') & (df['nCoVPC_RP'] == 'failed'), 'Positive_control'] = 'failed'
 
         # Sanity checks
-        # print(df.loc[df['Sample Name'] == 'NTC', ['Sample Name', 'Target Name', 'CT', 'NTC_N1', 'NTC_N2', 'NTC_RP', 'Negative_control']])
-        # print(df.loc[df['Sample Name'] == 'HSC', ['Sample Name', 'Target Name', 'CT', 'HSC_N1', 'HSC_N2', 'HSC_RP', 'Extraction_control']])
-        # print(df.loc[df['Sample Name'] == 'nCoVPC', ['Sample Name', 'Target Name', 'CT', 'nCoVPC_N1', 'nCoVPC_N2', 'nCoVPC_RP', 'Positive_control']])
+        # print(df.loc[df['Sample Name'] == 'NTC', ['Sample Name', 'Target Name', 'CT', 'NTC_N1', 'NTC_N2',
+        #                                           'NTC_RP', 'Negative_control']])
+        # print(df.loc[df['Sample Name'] == 'HSC', ['Sample Name', 'Target Name', 'CT', 'HSC_N1', 'HSC_N2',
+        #                                           'HSC_RP', 'Extraction_control']])
+        # print(df.loc[df['Sample Name'] == 'nCoVPC', ['Sample Name', 'Target Name', 'CT', 'nCoVPC_N1', 'nCoVPC_N2',
+        #                                              'nCoVPC_RP', 'Positive_control']])
 
-        # Filter dataframe to only include controls and selected columns
+        # Filter data frame to only include controls and selected columns
         controls_filtered = df.loc[
             (df['Sample Name'] == 'NTC') | (df['Sample Name'] == 'HSC') | (df['Sample Name'] == 'nCoVPC')]
-        controls = controls_filtered.loc[:,
-                   ['Sample Name', 'Target Name', 'CT', 'Negative_control', 'Extraction_control', 'Positive_control']]
+        controls = controls_filtered.loc[:, ['Sample Name', 'Target Name', 'CT', 'Negative_control',
+                                             'Extraction_control', 'Positive_control']]
         # Define list of columns to join
         cols = ['Negative_control', 'Extraction_control', 'Positive_control']
         # Join selected columns into single column - 'controls_result'
@@ -148,9 +151,8 @@ class COV:
         "The assay may have been set up and/or executed improperly, or reagent or equipment malfunction "
         "could have occurred. Invalidate the run and re-test."
         """
-        # TODO: Write out controls results to file or to log file
 
-        ##### Results interpretation
+        # Results interpretation
         # Create sample results column
         # Results for N1 assay
         df.loc[(df['Target Name'] == 'N1') & (df['CT'] > ct_value) | (df['Target Name'] == 'N1') & (df['CT'].isnull()),
@@ -215,23 +217,23 @@ class COV:
         # Reset index
         sf = sf.reset_index()
 
-        # Write out final results file for checks.
-        sf.to_csv("final_results_test.csv", sep=',', index=False)
+        # Check - Write out final results file.
+        # sf.to_csv("final_results_test.csv", sep=',', index=False)
 
         # Prepare the outpath for the processed data using a timestamp
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
         outname = os.path.split(path)
         outname1 = outname[0]
-        new_base = timestr + '_covid.csv'
-        outPath = outname1 + '/' + new_base
-        sf.to_csv(outPath, sep=",")
+        new_base = timestr + '_covid_results.csv'
+        outpath = outname1 + '/' + new_base
+        sf.to_csv(outpath, sep=",", index=False)
 
         # TODO: write out the log file that explains the number of patients and if there were any missing data
         # Prepare path for the log file
-        LOG_FILENAME = outname1 + '/' + '_covid_output_' + timestr + '.log'
+        log_filename = outname1 + '/' + timestr + '_covid_output.log'
 
         # Define log file parameters
-        logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
+        logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
                             datefmt='%H:%M:%S')
         # Info for log file
         logging.info(' Number of controls run: ' + str(len(controls['Sample Name'].unique().tolist())))
@@ -251,5 +253,7 @@ class COV:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
+
 my_gui = COV(root)
+root.update()
 root.mainloop()
