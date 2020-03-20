@@ -236,10 +236,9 @@ class COV:
 
         path_parts = path.split(os.path.sep)
         temp_path_parts = path_parts[:-3]
-        new_path = os.path.join(*temp_path_parts)
-        print(new_path)
-        processedpath = '/processed/'
-        sf.to_csv('/' + new_path + processedpath + new_base, sep=",", index=False)
+        new_path = os.path.join('/', *temp_path_parts)
+    	processedpath = '/processed/'
+        sf.to_csv(new_path + processedpath + new_base, sep=",", index=False)
 
         # Experiment details
         runinfo = pd.read_excel(path, sheet_name='Results', skiprows=28, header=None, nrows=8)
@@ -250,7 +249,7 @@ class COV:
         # original
         # log_filename = outname1 + '/' + log_base
         log_base = timestr + '_covid_output.log'
-        log_filename = '/' + new_path + logpath + log_base
+        log_filename = new_path + logpath + log_base
 
         # Define log file parameters
         logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
