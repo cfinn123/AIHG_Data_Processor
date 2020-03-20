@@ -28,12 +28,16 @@ class COV:
         self.master = master
         master.title("COVID-19 Data Processor")
 
-        # self.label = Label(master, text="COVID-19 Data Processor", pady=10)
-        # self.label.pack()
-
         self.convert_button = Button(master, text="Select input file",
                                      command=self.dataprocess, width=13)
         self.convert_button.pack(pady=10)
+
+        # self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
+        #                              command=self.dataprocess, width=45)
+        # self.convert_button.grid(row=1, column=1)
+
+    # def secondProcess(self):
+        # print('out')
 
     def dataprocess(self):
         # Ingest input file
@@ -224,11 +228,15 @@ class COV:
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
         outname = os.path.split(path)
         outname1 = outname[0]
+        outfilename = outname[1]
         new_base = timestr + '_covid_results.csv'
         outpath = outname1 + '/' + new_base
         sf.to_csv(outpath, sep=",", index=False)
 
-        # TODO: write out the log file that explains the number of patients and if there were any missing data
+        # Instrument name
+        runinfo = pd.read_excel(path, sheet_name='Results', skiprows=28, header=None, nrows=8)
+
+        # Log file
         # Prepare path for the log file
         log_filename = outname1 + '/' + timestr + '_covid_output.log'
 
@@ -236,6 +244,11 @@ class COV:
         logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
                             datefmt='%H:%M:%S')
         # Info for log file
+        logging.info(' Name of input file: ' + outfilename)
+        logging.info('\n')
+        logging.info('Run information: ')
+        logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
+        logging.info('\n')
         logging.info(' Number of controls run: ' + str(len(controls['Sample Name'].unique().tolist())))
         logging.info(' Controls run: ' + str(controls['Sample Name'].unique()))
         logging.info('\n')
