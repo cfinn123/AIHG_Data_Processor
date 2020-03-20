@@ -227,18 +227,30 @@ class COV:
         # Prepare the outpath for the processed data using a timestamp
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
         outname = os.path.split(path)
-        outname1 = outname[0]
+        # outname1 = outname[0]
         outfilename = outname[1]
         new_base = timestr + '_covid_results.csv'
-        outpath = outname1 + '/' + new_base
-        sf.to_csv(outpath, sep=",", index=False)
+        # original
+        # outpath = outname1 + '/' + new_base
+        # sf.to_csv(outpath, sep=",", index=False)
 
-        # Instrument name
+        path_parts = path.split(os.path.sep)
+        temp_path_parts = path_parts[:-3]
+        new_path = os.path.join(*temp_path_parts)
+        print(new_path)
+        processedpath = '/processed/'
+        sf.to_csv('/' + new_path + processedpath + new_base, sep=",", index=False)
+
+        # Experiment details
         runinfo = pd.read_excel(path, sheet_name='Results', skiprows=28, header=None, nrows=8)
 
         # Log file
         # Prepare path for the log file
-        log_filename = outname1 + '/' + timestr + '_covid_output.log'
+        logpath = '/processed/logs/'
+        # original
+        # log_filename = outname1 + '/' + log_base
+        log_base = timestr + '_covid_output.log'
+        log_filename = '/' + new_path + logpath + log_base
 
         # Define log file parameters
         logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
