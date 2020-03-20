@@ -237,7 +237,7 @@ class COV:
         path_parts = path.split(os.path.sep)
         temp_path_parts = path_parts[:-3]
         new_path = os.path.join('/', *temp_path_parts)
-    	processedpath = '/processed/'
+        processedpath = '/processed/'
         sf.to_csv(new_path + processedpath + new_base, sep=",", index=False)
 
         # Experiment details
