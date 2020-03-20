@@ -235,7 +235,7 @@ class COV:
         # sf.to_csv(outpath, sep=",", index=False)
 
         print(path)
-        path_parts = path.split(os.path.sep)
+        path_parts = os.path.split(os.path.sep)
         print(path_parts)
         temp_path_parts = path_parts[:-3]
         print(temp_path_parts)
