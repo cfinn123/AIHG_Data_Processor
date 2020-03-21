@@ -229,9 +229,9 @@ class COV:
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
 
         # This portion works for Unix systems - see section below for Windows.
-        # outname = os.path.split(path)
-        # outname1 = outname[0]
-        # outfilename = outname[1]
+        outname = os.path.split(path)
+        outname1 = outname[0]
+        outfilename = outname[1]
         # new_base = timestr + '_covid_results.csv'
         # # original
         # outpath = outname1 + '/' + new_base
