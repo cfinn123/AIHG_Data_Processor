@@ -10,6 +10,7 @@ from tkinter import *
 from tkinter import filedialog, messagebox
 import pandas as pd
 import os
+import ntpath
 import time
 import logging
 from PIL import ImageTk, Image
