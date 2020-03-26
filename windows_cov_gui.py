@@ -292,7 +292,7 @@ class COV:
     def bsiprocess(self):
         pathbsi = filedialog.askopenfilename()
         # read in file - output from Meditech to BSI script
-        current = pd.read_csv(path, sep="\t", header=0)
+        current = pd.read_csv(pathbsi, sep="\t", header=0)
 
         # Replace 'PGX' in Study ID field with 'COVID19'
         current['Study ID'].replace('PGX', 'COVID19', inplace=True)
@@ -310,10 +310,11 @@ class COV:
         # Get path as string and create new base for file name
         outnamebsi = os.path.split(pathbsi)
         outname1bsi = outnamebsi[0]
+        outfilenamebsi = outnamebsi[1]
         bsi_base = "_covid_BSI.txt"
 
         # Write out new file
-        current.to_csv(outname1bsi + '\\' + bsi_base, sep='\t', index=False)
+        current.to_csv(outname1bsi + '\\' + outfilenamebsi + bsi_base, sep='\t', index=False)
 
         messagebox.showinfo("Complete", "File Successfully Converted for BSI!")
 
