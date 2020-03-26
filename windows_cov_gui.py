@@ -314,7 +314,7 @@ class COV:
         outfilenamebsi = outnamebsi[1]
         bsicleanname = outfilenamebsi[:-4]
         bsi_base = "_covid_BSI.txt"
-        newname = outname1bsi + '\\' + bsicleanname + bsi_base
+        newname = outname1bsi + '\\' + bsicleanname + bsi_base + ".xlsx"
 
         # dataframe to Excel
         writer = ExcelWriter(newname)
