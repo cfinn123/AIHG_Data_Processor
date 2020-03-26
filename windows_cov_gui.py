@@ -289,7 +289,7 @@ class COV:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
-    def bsiProcess(self):
+    def bsiprocess(self):
         pathbsi = filedialog.askopenfilename()
         # read in file - output from Meditech to BSI script
         current = pd.read_csv(path, sep="\t", header=0)
