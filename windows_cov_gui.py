@@ -29,16 +29,20 @@ class COV:
         self.master = master
         master.title("COVID-19 Data Processor")
 
-        self.convert_button = Button(master, text="Select input file",
-                                     command=self.dataprocess, width=13)
+        # self.convert_button = Button(master, text="Select input file",
+        #                              command=self.dataprocess, width=13)
+        # self.convert_button.pack(pady=10)
+
+        self.convert_button = Button(master, text='Select file to analyze', command=self.dataprocess, width=20)
         self.convert_button.pack(pady=10)
+
+        self.convert_button1 = Button(master, text='Select file to convert for BSI', command=self.bsiprocess, width=30)
+        self.convert_button1.pack(pady=10)
 
         # self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
         #                              command=self.dataprocess, width=45)
         # self.convert_button.grid(row=1, column=1)
 
-    # def secondProcess(self):
-        # print('out')
 
     def dataprocess(self):
         # Ingest input file
@@ -285,6 +289,33 @@ class COV:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
+    def bsiProcess(self):
+        pathbsi = filedialog.askopenfilename()
+        # read in file - output from Meditech to BSI script
+        current = pd.read_csv(path, sep="\t", header=0)
+
+        # Replace 'PGX' in Study ID field with 'COVID19'
+        current['Study ID'].replace('PGX', 'COVID19', inplace=True)
+
+        # Create redundant columns (desired for BSI upload)
+        current['First'] = current['First Name']
+        current['Last'] = current['Last Name']
+        current['Date of Birth'] = current['DOB']
+
+        # Reorder columns
+        current = current[['Study ID', 'Current Label', 'Account', 'Subject ID', 'Med Rec', 'Date Collected',
+                           'Date Received', 'Gender', 'DOB', 'Date of Birth', 'First Name', 'First', 'Last Name',
+                           'Last', 'Specimen']]
+
+        # Get path as string and create new base for file name
+        outnamebsi = os.path.split(pathbsi)
+        outname1bsi = outnamebsi[0]
+        bsi_base = "_covid_BSI.txt"
+
+        # Write out new file
+        current.to_csv(outname1bsi + '\\' + bsi_base, sep='\t', index=False)
+
+        messagebox.showinfo("Complete", "File Successfully Converted for BSI!")
 
 my_gui = COV(root)
 root.update()
