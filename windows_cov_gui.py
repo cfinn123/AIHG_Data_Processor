@@ -9,6 +9,7 @@ Reference: CDC-006-00019, Revision: 02
 from tkinter import *
 from tkinter import filedialog, messagebox
 import pandas as pd
+from pandas import ExcelWriter
 import os
 import ntpath
 import time
@@ -311,10 +312,17 @@ class COV:
         outnamebsi = os.path.split(pathbsi)
         outname1bsi = outnamebsi[0]
         outfilenamebsi = outnamebsi[1]
+        bsicleanname = outfilenamebsi[:-4]
         bsi_base = "_covid_BSI.txt"
+        newname = outname1bsi + '\\' + bsicleanname + bsi_base
+
+        # dataframe to Excel
+        writer = ExcelWriter(newname)
+        current.to_excel(writer, 'Sheet1', index=False)
+        writer.save()
 
         # Write out new file
-        current.to_csv(outname1bsi + '\\' + outfilenamebsi + bsi_base, sep='\t', index=False)
+        # current.to_csv(outname1bsi + '\\' + bsicleanname + bsi_base, sep='\t', index=False)
 
         messagebox.showinfo("Complete", "File Successfully Converted for BSI!")
 
