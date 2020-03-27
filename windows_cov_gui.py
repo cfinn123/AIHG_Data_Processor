@@ -313,7 +313,7 @@ class COV:
         outname1bsi = outnamebsi[0]
         outfilenamebsi = outnamebsi[1]
         bsicleanname = outfilenamebsi[:-4]
-        bsi_base = "_covid_BSI.txt"
+        bsi_base = "_covid_BSI"
         newname = outname1bsi + '\\' + bsicleanname + bsi_base + ".xlsx"
 
         # dataframe to Excel
