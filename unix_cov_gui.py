@@ -275,7 +275,7 @@ class COV:
                     row_start_2 = row2
                     break
         # Subset raw file for only portion below "Well" and remainder of header
-        runinfo = info_orig[row_start_2:(row_start_2+8)]
+        runinfo = info_orig[row_start_2:(row_start_2+9)]
 
         # Reset index
         runinfo.reset_index(drop=True)
