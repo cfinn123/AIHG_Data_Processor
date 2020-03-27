@@ -45,7 +45,22 @@ class COV:
         # ask the user for an input read in the file selected by the user
         path = filedialog.askopenfilename()
         # read in 'Results' sheet of specified file
-        df = pd.read_excel(path, sheet_name='Results', skiprows=42, header=0)
+        # df = pd.read_excel(path, sheet_name='Results', skiprows=42, header=0)
+        # To accommodate either QuantStudio or ViiA7
+        df_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row in range(df_orig.shape[0]):
+            for col in range(df_orig.shape[1]):
+                if df_orig.iat[row, col] == "Well":
+                    row_start = row
+                    break
+        # Subset raw file for only portion below "Well" and remainder of header
+        df = df_orig[row_start:]
+
+        # Header exists in row 1, make new header
+        new_header = df.iloc[0]
+        df = df[1:]
+        df.columns = new_header
+
         # Convert 'undetermined' to 'NaN' for 'CT' column
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
@@ -162,15 +177,18 @@ class COV:
         # Results for N1 assay
         df.loc[(df['Target Name'] == 'N1') & (df['CT'] > ct_value) | (df['Target Name'] == 'N1') & (df['CT'].isnull()),
                'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value), 'result'] = 'positive'
+        df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
+        df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
         # Results for N2 assay
         df.loc[(df['Target Name'] == 'N2') & (df['CT'] > ct_value) | (df['Target Name'] == 'N2') & (df['CT'].isnull()),
                'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value), 'result'] = 'positive'
+        df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
+        df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
         # Results for RP assay
         df.loc[(df['Target Name'] == 'RP') & (df['CT'] > ct_value) | (df['Target Name'] == 'RP') & (df['CT'].isnull()),
                'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value), 'result'] = 'positive'
+        df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
+        df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
 
         # Filter for samples (exclude controls)
         sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC'])].copy(deep=True).sort_values(
@@ -247,7 +265,20 @@ class COV:
         # sf.to_csv(new_path + processedpath + new_base, sep=",", index=False)
 
         # Experiment details
-        runinfo = pd.read_excel(path, sheet_name='Results', skiprows=28, header=None, nrows=8)
+        # runinfo = pd.read_excel(path, sheet_name='Results', skiprows=28, header=None, nrows=8)
+
+        # To accommodate either QuantStudio or ViiA7
+        info_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row2 in range(info_orig.shape[0]):
+            for col2 in range(info_orig.shape[1]):
+                if info_orig.iat[row2, col2] == "Experiment File Name":
+                    row_start_2 = row2
+                    break
+        # Subset raw file for only portion below "Well" and remainder of header
+        runinfo = info_orig[row_start_2:(row_start_2+8)]
+
+        # Reset index
+        runinfo.reset_index(drop=True)
 
         # Log file
         # Prepare path for the log file
