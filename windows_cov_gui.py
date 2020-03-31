@@ -169,6 +169,9 @@ class COV:
         controls['controls_result'] = controls[cols].apply(lambda x: ''.join(x.dropna()), axis=1)
         # print(controls)
 
+        # Sort controls data frame so that controls are grouped in log output.
+        controls = controls.sort_values(by=['Sample Name', 'Target Name'])
+
         # TODO: Raise error if controls result column contains string 'failed'. Error message below.
         """
         "One or more of the above controls does not exhibit the expected performance as described. "
