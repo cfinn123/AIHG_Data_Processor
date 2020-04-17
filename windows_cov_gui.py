@@ -40,6 +40,15 @@ class COV:
         self.convert_button1 = Button(master, text='Select file to convert for BSI', command=self.bsiprocess, width=30)
         self.convert_button1.pack(pady=10)
 
+        # TODO: New button for stats
+        # self.convert_button2 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
+        #                               width=40)
+        # self.convert_button2.pack(pady=10)
+
+        # self.convert_button3 = Button(master, text='Generate stats for entire directory',
+        #                               command=self.dirstatsprocess, width=40)
+        # self.convert_button3.pack(pady=10)
+
         # self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
         #                              command=self.dataprocess, width=45)
         # self.convert_button.grid(row=1, column=1)
@@ -49,8 +58,11 @@ class COV:
         # Ingest input file
         # ask the user for an input read in the file selected by the user
         path = filedialog.askopenfilename()
+
+        # Original - does not work for ViiA7
         # read in 'Results' sheet of specified file
         # df = pd.read_excel(path, sheet_name='Results', skiprows=42, header=0)
+
         # To accommodate either QuantStudio or ViiA7
         df_orig = pd.read_excel(path, sheet_name="Results", header=None)
         for row in range(df_orig.shape[0]):
@@ -65,6 +77,10 @@ class COV:
         new_header = df.iloc[0]
         df = df[1:]
         df.columns = new_header
+
+        # Adding a new line to handle the 'Cт' present in the header of the output file from the 7500 instrument
+        df.columns = df.columns.str.replace('Cт', 'CT')
+
         # Convert 'undetermined' to 'NaN' for 'CT' column
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
@@ -358,6 +374,45 @@ class COV:
         # current.to_csv(outname1bsi + '\\' + bsicleanname + bsi_base, sep='\t', index=False)
 
         messagebox.showinfo("Complete", "File Successfully Converted for BSI!")
+
+    #  TODO: Add statsprocess
+    # def statsprocess(self):
+    #   pathstats = filedialog.askopenfilenames()
+    #   filelist = root.tk.splitlist(pathstats)
+    #   files_xls = [f for f in filelist if f[-3:] == 'xls']
+        list = []
+        for file in filelist:
+            list.append(os.path.split(file)[1])
+
+
+
+    # TODO: ADD dirstatsprocess
+    def dirstatsprocess(self):
+        dir = filedialog.askdirectory()
+        files_xls2 = [f for f in os.listdir(dir) if f.endswith('xls')]
+
+        fulldf = pd.DataFrame()
+        for x in files_xls2:
+            df_orig = pd.read_excel(x, sheet_name="Results", header=None)
+            for row in range(df_orig.shape[0]):
+                for col in range(df_orig.shape[1]):
+                    if df_orig.iat[row, col] == "Well":
+                        row_start = row
+                        break
+
+            # Subset raw file for only portion below "Well" and remainder of header
+            df = df_orig[row_start:]
+
+            # Take all but column names
+            df = df[1:]
+
+            # This will not work because there will not be column names at this point.
+            # Convert 'undetermined' to 'NaN' for 'CT' column
+            # df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+
+            fulldf = fulldf.append(df)
+
+
 
 my_gui = COV(root)
 root.update()
