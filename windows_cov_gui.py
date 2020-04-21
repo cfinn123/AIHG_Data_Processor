@@ -197,21 +197,38 @@ class COV:
 
         # Results interpretation
         # Create sample results column
+
+        # This portion will handle if the NOAMP flag is present
         # Results for N1 assay
-        df.loc[(df['Target Name'] == 'N1') & (df['CT'] > ct_value) | (df['Target Name'] == 'N1') & (df['CT'].isnull()),
-               'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
+        if 'NOAMP' in df.columns:
+            df.loc[(df['Target Name'] == 'N1') & (df['CT'] > ct_value) | (df['Target Name'] == 'N1') &
+                   (df['CT'].isnull()), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
         # Results for N2 assay
-        df.loc[(df['Target Name'] == 'N2') & (df['CT'] > ct_value) | (df['Target Name'] == 'N2') & (df['CT'].isnull()),
-               'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
+            df.loc[(df['Target Name'] == 'N2') & (df['CT'] > ct_value) | (df['Target Name'] == 'N2') &
+                   (df['CT'].isnull()), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
         # Results for RP assay
-        df.loc[(df['Target Name'] == 'RP') & (df['CT'] > ct_value) | (df['Target Name'] == 'RP') & (df['CT'].isnull()),
-               'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
-        df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
+            df.loc[(df['Target Name'] == 'RP') & (df['CT'] > ct_value) | (df['Target Name'] == 'RP') &
+                   (df['CT'].isnull()), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value) & (df['NOAMP'] == "Y"), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value) & (df['NOAMP'] == "N"), 'result'] = 'positive'
+
+        # This portion handles instances when NOAMP flag is absent (i.e. output from 7500 instrument)
+        if 'NOAMP' not in df.columns:
+            df.loc[(df['Target Name'] == 'N1') & (df['CT'] > ct_value) | (df['Target Name'] == 'N1') &
+                   (df['CT'].isnull()), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'N1') & (df['CT'] < ct_value), 'result'] = 'positive'
+            # Results for N2 assay
+            df.loc[(df['Target Name'] == 'N2') & (df['CT'] > ct_value) | (df['Target Name'] == 'N2') &
+                   (df['CT'].isnull()), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'N2') & (df['CT'] < ct_value), 'result'] = 'positive'
+            # Results for RP assay
+            df.loc[(df['Target Name'] == 'RP') & (df['CT'] > ct_value) | (df['Target Name'] == 'RP') &
+                   (df['CT'].isnull()), 'result'] = 'negative'
+            df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value), 'result'] = 'positive'
 
         # Filter for samples (exclude controls)
         sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC'])].copy(deep=True).sort_values(
