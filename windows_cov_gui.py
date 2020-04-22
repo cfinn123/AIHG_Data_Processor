@@ -15,6 +15,7 @@ import ntpath
 import time
 import logging
 from PIL import ImageTk, Image
+import numpy as np
 
 root = Tk()
 root.configure(bg='white')
