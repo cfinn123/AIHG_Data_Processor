@@ -198,7 +198,7 @@ class COV:
         # Results interpretation
         # Create sample results column
 
-        # This portion will handle if the NOAMP flag is present
+        # This portion will handle if the NOAMP flag is present (output from QuantStudio and ViiA7 instruments)
         # Results for N1 assay
         if 'NOAMP' in df.columns:
             df.loc[(df['Target Name'] == 'N1') & (df['CT'] > ct_value) | (df['Target Name'] == 'N1') &
@@ -231,8 +231,8 @@ class COV:
             df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value), 'result'] = 'positive'
 
         # Filter for samples (exclude controls)
-        sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC'])].copy(deep=True).sort_values(
-            by=['Sample Name'])
+        sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC',
+                                                            np.NaN])].copy(deep=True).sort_values(by=['Sample Name'])
         # Sanity check
         # print(sf.head())
 
