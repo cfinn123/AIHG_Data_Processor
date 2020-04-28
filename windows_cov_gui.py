@@ -113,15 +113,32 @@ class COV:
         df.loc[(df['Sample Name'] == 'NTC') & (df['Target Name'] == 'RP') & (df['CT'].notnull()), 'NTC_RP'] = 'failed'
 
         # Create results columns for HSC - human specimen control (extraction control)
+        # df['HSC_N1'] = None  # initial value
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N1') & (df['CT'].isnull()), 'HSC_N1'] = 'passed'
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N1') & (df['CT'].notnull()), 'HSC_N1'] = 'failed'
+        # df['HSC_N2'] = None  # initial value
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N2') & (df['CT'].isnull()), 'HSC_N2'] = 'passed'
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N2') & (df['CT'].notnull()), 'HSC_N2'] = 'failed'
+        # df['HSC_RP'] = None  # initial value
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value), 'HSC_RP'] = 'passed'
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] > ct_value), 'HSC_RP'] = 'failed'
+
+        # Updated - Create results columns for HSC - human specimen control (extraction control) with full sample name
         df['HSC_N1'] = None  # initial value
-        df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N1') & (df['CT'].isnull()), 'HSC_N1'] = 'passed'
-        df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N1') & (df['CT'].notnull()), 'HSC_N1'] = 'failed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N1') & (df['CT'].isnull()),
+               'HSC_N1'] = 'passed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N1') & (df['CT'].notnull()),
+               'HSC_N1'] = 'failed'
         df['HSC_N2'] = None  # initial value
-        df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N2') & (df['CT'].isnull()), 'HSC_N2'] = 'passed'
-        df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N2') & (df['CT'].notnull()), 'HSC_N2'] = 'failed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N2') & (df['CT'].isnull()),
+               'HSC_N2'] = 'passed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N2') & (df['CT'].notnull()),
+               'HSC_N2'] = 'failed'
         df['HSC_RP'] = None  # initial value
-        df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value), 'HSC_RP'] = 'passed'
-        df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] > ct_value), 'HSC_RP'] = 'failed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value),
+               'HSC_RP'] = 'passed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'RP') & (df['CT'] > ct_value),
+               'HSC_RP'] = 'failed'
 
         # Create results columns for nCoVPC - novel Coronavirus control (positive control)
         df['nCoVPC_N1'] = None  # initial value
@@ -150,13 +167,22 @@ class COV:
                | (df['Sample Name'] == 'NTC') & (df['NTC_RP'] == 'failed'), 'Negative_control'] = 'failed'
 
         # Create column for aggregate results of HSC - extraction control
+        # df['Extraction_control'] = None
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['HSC_N1'] == 'passed')
+        #        | (df['Sample Name'] == 'HSC') & (df['HSC_N2'] == 'passed')
+        #        | (df['Sample Name'] == 'HSC') & (df['HSC_RP'] == 'passed'), 'Extraction_control'] = 'passed'
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['HSC_N1'] == 'failed')
+        #        | (df['Sample Name'] == 'HSC') & (df['HSC_N2'] == 'failed')
+        #        | (df['Sample Name'] == 'HSC') & (df['HSC_RP'] == 'failed'), 'Extraction_control'] = 'failed'
+
+        # Updated - Create column for aggregate results of HSC -extraction control
         df['Extraction_control'] = None
-        df.loc[(df['Sample Name'] == 'HSC') & (df['HSC_N1'] == 'passed')
-               | (df['Sample Name'] == 'HSC') & (df['HSC_N2'] == 'passed')
-               | (df['Sample Name'] == 'HSC') & (df['HSC_RP'] == 'passed'), 'Extraction_control'] = 'passed'
-        df.loc[(df['Sample Name'] == 'HSC') & (df['HSC_N1'] == 'failed')
-               | (df['Sample Name'] == 'HSC') & (df['HSC_N2'] == 'failed')
-               | (df['Sample Name'] == 'HSC') & (df['HSC_RP'] == 'failed'), 'Extraction_control'] = 'failed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['HSC_N1'] == 'passed')
+               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_N2'] == 'passed')
+               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_RP'] == 'passed'), 'Extraction_control'] = 'passed'
+        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['HSC_N1'] == 'failed')
+               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_N2'] == 'failed')
+               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_RP'] == 'failed'), 'Extraction_control'] = 'failed'
 
         # Create column for aggregate results of nCoVPC - positive control
         df['Positive_control'] = None
@@ -176,8 +202,14 @@ class COV:
         #                                              'nCoVPC_RP', 'Positive_control']])
 
         # Filter data frame to only include controls and selected columns
+        # controls_filtered = df.loc[
+        #     (df['Sample Name'] == 'NTC') | (df['Sample Name'] == 'HSC') | (df['Sample Name'] == 'nCoVPC')]
+        # controls = controls_filtered.loc[:, ['Sample Name', 'Target Name', 'CT', 'Negative_control',
+        #                                      'Extraction_control', 'Positive_control']]
+
+        # Updated - Filter data frame to only include controls and selected columns
         controls_filtered = df.loc[
-            (df['Sample Name'] == 'NTC') | (df['Sample Name'] == 'HSC') | (df['Sample Name'] == 'nCoVPC')]
+            (df['Sample Name'] == 'NTC') | (df['Sample Name'].str.contains("NEG")) | (df['Sample Name'] == 'nCoVPC')]
         controls = controls_filtered.loc[:, ['Sample Name', 'Target Name', 'CT', 'Negative_control',
                                              'Extraction_control', 'Positive_control']]
         # Define list of columns to join
@@ -395,40 +427,41 @@ class COV:
 
     #  TODO: Add statsprocess
     # def statsprocess(self):
-    #   pathstats = filedialog.askopenfilenames()
-    #   filelist = root.tk.splitlist(pathstats)
-    #   files_xls = [f for f in filelist if f[-3:] == 'xls']
-        list = []
-        for file in filelist:
-            list.append(os.path.split(file)[1])
-
+    #     pathstats = filedialog.askopenfilenames()
+    #     filelist = root.tk.splitlist(pathstats)
+    #     files_xls = [f for f in filelist if f[-3:] == 'xls']
+    #     list = []
+    #     for file in filelist:
+    #         list.append(os.path.split(file)[1])
 
 
     # TODO: ADD dirstatsprocess
-    def dirstatsprocess(self):
-        dir = filedialog.askdirectory()
-        files_xls2 = [f for f in os.listdir(dir) if f.endswith('xls')]
-
-        fulldf = pd.DataFrame()
-        for x in files_xls2:
-            df_orig = pd.read_excel(x, sheet_name="Results", header=None)
-            for row in range(df_orig.shape[0]):
-                for col in range(df_orig.shape[1]):
-                    if df_orig.iat[row, col] == "Well":
-                        row_start = row
-                        break
-
-            # Subset raw file for only portion below "Well" and remainder of header
-            df = df_orig[row_start:]
-
-            # Take all but column names
-            df = df[1:]
-
-            # This will not work because there will not be column names at this point.
-            # Convert 'undetermined' to 'NaN' for 'CT' column
-            # df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
-
-            fulldf = fulldf.append(df)
+    # def dirstatsprocess(self):
+    #     dir = filedialog.askdirectory()
+    #     files_xls2 = [f for f in os.listdir(dir) if f.endswith('xls')]
+    #
+    #     fulldf = pd.DataFrame()
+    #     for x in files_xls2:
+    #         df_orig = pd.read_excel(x, sheet_name="Results", header=None)
+    #         for row in range(df_orig.shape[0]):
+    #             for col in range(df_orig.shape[1]):
+    #                 if df_orig.iat[row, col] == "Well":
+    #                     row_start = row
+    #                     break
+    #
+    #         # Subset raw file for only portion below "Well" and remainder of header
+    #         df = df_orig[row_start:]
+    #
+    #         # Take all but column names
+    #         df = df[1:]
+    #
+    #         # This will not work because there will not be column names at this point.
+    #         # Convert 'undetermined' to 'NaN' for 'CT' column
+    #         # df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+    #
+    #         fulldf = fulldf.append(df)
+    #
+    #     fulldf.reset_index()
 
 
 
