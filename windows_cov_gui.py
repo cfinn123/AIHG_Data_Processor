@@ -263,9 +263,19 @@ class COV:
                    (df['CT'].isnull()), 'result'] = 'negative'
             df.loc[(df['Target Name'] == 'RP') & (df['CT'] < ct_value), 'result'] = 'positive'
 
-        # Filter for samples (exclude controls)
-        sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC',
-                                                            np.NaN])].copy(deep=True).sort_values(by=['Sample Name'])
+        # # Filter for samples (exclude controls)
+        # sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC',
+        #                                                     np.NaN])].copy(deep=True).sort_values(by=['Sample Name'])
+
+
+        # Updated - Drop Sample Names that appear as NaN in 7500 output
+        sf_orig = df.dropna(subset=['Sample Name'])
+
+        # Updated - Filter for samples (exclude controls)
+        controls_list = ['NTC', 'NEG', 'nCoVPC']
+        sf = sf_orig[~sf_orig['Sample Name'].str.contains('|'.join(controls_list))]\
+            .copy(deep=True).sort_values(by=['Sample Name'])
+
         # Sanity check
         # print(sf.head())
 
