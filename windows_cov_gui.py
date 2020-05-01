@@ -4,6 +4,11 @@ Date of inception: March 16, 2020
 Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics.
 Ingests files from RT-qPCR assay and creates summarized results for upload.
 Reference: CDC-006-00019, Revision: 02
+
+Date of addition: April 29, 2020
+Additional logic added for interpretation of ELISA used for detecting COVID-19 igG antibody in human serum.
+The assay is intented for qualitative detection only.
+Reference: EAGLE Biosciences EDI Novel Coronavirus COVID-19 IgG ELISA Kit.
 """
 
 from tkinter import *
@@ -53,6 +58,11 @@ class COV:
         # self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
         #                              command=self.dataprocess, width=45)
         # self.convert_button.grid(row=1, column=1)
+
+        # TODO: New button for antibody testing
+        self.convert_button4 = Button(master, text="Select ELISA file to analyze", command=self.antibodyprocess,
+                                      width=35)
+        self.convert_button4.pack(pady=10)
 
 
     def dataprocess(self):
@@ -473,6 +483,85 @@ class COV:
     #
     #     fulldf.reset_index()
 
+    # TODO: ADD antibodyprocess
+    def antibodyprocess(self):
+        abpath = filedialog.askopenfilename()
+        # Read in file - encoding is important
+        abdf = pd.read_csv(abpath, sep='\t', encoding='utf-16', skiprows=2, skipfooter=4, engine='python')
+
+        # Simple replacements for spaces included in controls
+        abdf = abdf.replace('Neg Ctrl', 'Neg_Ctrl')
+        abdf = abdf.replace('Pos Ctrl', 'Pos_Ctrl')
+
+        # Replace empty Sample names with np.nan in order fo forward fill
+        abdf = abdf.replace(r'\s', np.nan, regex=True)
+
+        # Forward fill Sample names
+        abdf['Sample'] = abdf['Sample'].fillna(method='ffill')
+
+        # Make a dataframe of mean optical density (OD) values
+        meanod_df = abdf.groupby('Sample', as_index=False)['OD'].mean().set_index('Sample').rename(columns={'OD':"mean_OD"})
+
+        # Obtain the absorbance of the positive control
+        xPC = meanod_df.loc['Pos_Ctrl', 'mean_OD'].round(5)
+
+        # Calculate the average value of the absorbance of the negative control
+        xNC = meanod_df.loc['Neg_Ctrl', 'mean_OD'].round(5)
+
+        # Quality control
+        # The average value of the absorbance of the negative control is than 0.25
+        # The absorbance of the positive control is NOT less than 0.30
+        neg_ctrl_avg_value_threshold = 0.25
+        pos_ctrl_value_threshold = 0.30
+
+        rules = [xNC < neg_ctrl_avg_value_threshold,
+                 xPC > pos_ctrl_value_threshold]
+
+        try:
+            if all(rules):
+                positive_cutoff = 1.1 * (xNC + 0.18)
+                print("Positive cutoff: ", positive_cutoff.round(5))
+                negative_cutoff = 0.9 * (xNC + 0.18)
+                print("Negative cutoff: ", negative_cutoff.round(5))
+        # elif xNC > neg_ctrl_avg_value_threshold:
+        #     print("WARNING: The average absorbance of negative control exceeds the threshold of 0.25.")
+        # elif xPC < pos_ctrl_value_threshold:
+        #     print("WARNING: The absorbance of the positive control is less than the threshold of 0.30.")
+
+                # Make results table
+                sampledf = meanod_df.copy(deep=True)
+
+                # Interpretation of results
+                sampledf.loc[sampledf['mean_OD'] <= negative_cutoff, "Interpretation"] = "Negative"
+                sampledf.loc[sampledf['mean_OD'] >= positive_cutoff, "Interpretation"] = "Positive"
+                sampledf.loc[(sampledf['mean_OD'] > negative_cutoff) & (sampledf['mean_OD'] < positive_cutoff), "Interpretation"] = "Borderline"
+
+                sampledf.loc[sampledf['Interpretation'] == "Negative", "Results"] = "The sample does not contain the new coronavirus (COVID-19) IgG-related antibody"
+                sampledf.loc[sampledf['Interpretation'] == "Positive", "Results"] = "The sample contains novel coronavirus (COVID-19) and IgG-associated antibodies"
+                sampledf.loc[sampledf['Interpretation'] == "Borderline", "Results"] = "Retest the sample in conjunction with other clinical tests"
+
+                # Reset index
+                sampledf = sampledf.reset_index()
+
+                # For Windows-based file paths
+                mypath = os.path.abspath(os.path.dirname(abpath))
+                newpath = os.path.join(mypath, '../processed')
+                normpath = os.path.normpath(newpath)
+                new_base = timestr + '_ELISA_results.csv'
+                sampledf.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
+            elif xNC > neg_ctrl_avg_value_threshold:
+                raise ValueError("ERROR: The average absorbance of negative control exceeds the threshold of 0.25.")
+
+            elif xPC < pos_ctrl_value_threshold:
+                raise ValueError("ERROR: The absorbance of the positive control is less than the threshold of 0.30.")
+
+        except Exception as e:
+                s = getattr(e, "Could not interpret results because one or more controls are out of bounds.", repr(e))
+                # print(s)
+                messagebox.showinof("ERROR", s)
+
+        messagebox.showinfo("Complete", "ELISA Data Processing Complete!")
 
 
 my_gui = COV(root)
