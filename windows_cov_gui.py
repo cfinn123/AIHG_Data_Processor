@@ -499,6 +499,18 @@ class COV:
         # Forward fill Sample names
         abdf['Sample'] = abdf['Sample'].fillna(method='ffill')
 
+        # Control counts for log
+        neg_count = len(abdf[abdf['Sample'].str.contains('Neg_Ctrl')])
+        pos_count = len(abdf[abdf['Sample'].str.contains('Pos_Ctrl')])
+
+        # Updated - Drop Sample Names that appear as NaN
+        abdf_clean = abdf.dropna(subset=['Sample'])
+
+        # Updated - Filter for samples (exclude controls)
+        controls_list = ['Neg_Ctrl', 'Pos_Ctrl']
+        samples = abdf_clean[~abdf_clean['Sample'].str.contains('|'.join(controls_list))]\
+            .copy(deep=True).sort_values(by=['Sample'])
+
         # Make a dataframe of mean optical density (OD) values
         meanod_df = abdf.groupby('Sample', as_index=False)['OD'].mean().set_index('Sample').rename(columns={'OD':"mean_OD"})
 
@@ -534,21 +546,65 @@ class COV:
                 # Interpretation of results
                 sampledf.loc[sampledf['mean_OD'] <= negative_cutoff, "Interpretation"] = "Negative"
                 sampledf.loc[sampledf['mean_OD'] >= positive_cutoff, "Interpretation"] = "Positive"
-                sampledf.loc[(sampledf['mean_OD'] > negative_cutoff) & (sampledf['mean_OD'] < positive_cutoff), "Interpretation"] = "Borderline"
+                sampledf.loc[(sampledf['mean_OD'] > negative_cutoff) & (sampledf['mean_OD'] < positive_cutoff),
+                             "Interpretation"] = "Borderline"
 
-                sampledf.loc[sampledf['Interpretation'] == "Negative", "Results"] = "The sample does not contain the new coronavirus (COVID-19) IgG-related antibody"
-                sampledf.loc[sampledf['Interpretation'] == "Positive", "Results"] = "The sample contains novel coronavirus (COVID-19) and IgG-associated antibodies"
-                sampledf.loc[sampledf['Interpretation'] == "Borderline", "Results"] = "Retest the sample in conjunction with other clinical tests"
+                sampledf.loc[sampledf['Interpretation'] == "Negative", "Results"] = \
+                    "The sample does not contain the new coronavirus (COVID-19) IgG-related antibody"
+                sampledf.loc[sampledf['Interpretation'] == "Positive", "Results"] = \
+                    "The sample contains novel coronavirus (COVID-19) and IgG-associated antibodies"
+                sampledf.loc[sampledf['Interpretation'] == "Borderline", "Results"] = \
+                    "Retest the sample in conjunction with other clinical tests"
 
                 # Reset index
                 sampledf = sampledf.reset_index()
 
+                # Prepare the outpath for the processed data using a timestamp
+                timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
+                # This portion works for Unix systems - see section below for Windows.
+                outname = os.path.split(path)
+                outname1 = outname[0]
+                outfilename = outname[1]
+
                 # For Windows-based file paths
                 mypath = os.path.abspath(os.path.dirname(abpath))
-                newpath = os.path.join(mypath, '../processed')
+                newpath = os.path.join(mypath, '../../processed')
                 normpath = os.path.normpath(newpath)
                 new_base = timestr + '_ELISA_results.csv'
                 sampledf.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
+                # For logging
+                info_orig = pd.read_csv(abpath, sep='\t', encoding='utf-16', skiprows=2, engine='python')
+
+                # Take only last line (filename information) and reset index
+                bottom = info_orig.tail(1).reset_index(drop=True)
+
+                # Obtain run info
+                runinfo = (bottom.iloc[0, 0])
+
+                # For Windows-based file paths
+                newlogpath = os.path.join(mypath, '../../processed/logs')
+                normlogpath = os.path.normpath(newlogpath)
+                log_base = timestr + '_covid_ELISA_output.log'
+                log_filename = normlogpath + '\\' + log_base
+
+                # Define log file parameters
+                logging.basicConfig(filename=log_filename, level=logging.DEBUG,
+                                    format='%(asctime)s %(levelname)s %(message)s',
+                                    datefmt='%H:%M:%S')
+                # Info for log file
+                logging.info(' Name of input file: ' + outfilename)
+                logging.info('\n')
+                logging.info(' Run information: ')
+                logging.info('\n' + str(runinfo))
+                logging.info('\n')
+                logging.info(' Number of negative controls run: ' + str(neg_count))
+                logging.info(' Number of positive controls run: ' + str(pos_count))
+                logging.warning('\n')
+                logging.info(' Number of samples run: ' + str(len(samples['Sample'].unique().tolist())))
+                logging.info('Samples run: ')
+                logging.info(str(samples['Sample'].unique()))
 
             elif xNC > neg_ctrl_avg_value_threshold:
                 raise ValueError("ERROR: The average absorbance of negative control exceeds the threshold of 0.25.")
@@ -559,7 +615,7 @@ class COV:
         except Exception as e:
                 s = getattr(e, "Could not interpret results because one or more controls are out of bounds.", repr(e))
                 # print(s)
-                messagebox.showinof("ERROR", s)
+                messagebox.showinff("ERROR", s)
 
         messagebox.showinfo("Complete", "ELISA Data Processing Complete!")
 
