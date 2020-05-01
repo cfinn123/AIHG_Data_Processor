@@ -40,9 +40,11 @@ class COV:
         #                              command=self.dataprocess, width=13)
         # self.convert_button.pack(pady=10)
 
-        self.convert_button = Button(master, text='Select file to analyze', command=self.dataprocess, width=20)
+        # Button for analyzing RT_PCR data
+        self.convert_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=20)
         self.convert_button.pack(pady=10)
 
+        # Button for converting Meditch to BSI (COVID formatting)
         self.convert_button1 = Button(master, text='Select file to convert for BSI', command=self.bsiprocess, width=30)
         self.convert_button1.pack(pady=10)
 
@@ -59,7 +61,7 @@ class COV:
         #                              command=self.dataprocess, width=45)
         # self.convert_button.grid(row=1, column=1)
 
-        # TODO: New button for antibody testing
+        # New button for antibody testing
         self.convert_button4 = Button(master, text="Select ELISA file to analyze", command=self.antibodyprocess,
                                       width=35)
         self.convert_button4.pack(pady=10)
@@ -563,7 +565,7 @@ class COV:
                 timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
 
                 # This portion works for Unix systems - see section below for Windows.
-                outname = os.path.split(path)
+                outname = os.path.split(abpath)
                 outname1 = outname[0]
                 outfilename = outname[1]
 
@@ -601,7 +603,7 @@ class COV:
                 logging.info('\n')
                 logging.info(' Number of negative controls run: ' + str(neg_count))
                 logging.info(' Number of positive controls run: ' + str(pos_count))
-                logging.warning('\n')
+                logging.info('\n')
                 logging.info(' Number of samples run: ' + str(len(samples['Sample'].unique().tolist())))
                 logging.info('Samples run: ')
                 logging.info(str(samples['Sample'].unique()))
@@ -615,7 +617,7 @@ class COV:
         except Exception as e:
                 s = getattr(e, "Could not interpret results because one or more controls are out of bounds.", repr(e))
                 # print(s)
-                messagebox.showinff("ERROR", s)
+                messagebox.showinfo("ERROR", s)
 
         messagebox.showinfo("Complete", "ELISA Data Processing Complete!")
 
