@@ -1,12 +1,16 @@
 """
 By: Jeff Beck and Casey Finnicum
 Date of inception: March 16, 2020
-Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics.
+1. Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics.
 Ingests files from RT-qPCR assay and creates summarized results for upload.
 Reference: CDC-006-00019, Revision: 02
 
+Date of addition: April 5, 2020
+2. Added a button to convert output files from the "Meditech to BSI" R scripts to make them COVID-compatible
+for upload into BSI.
+
 Date of addition: April 29, 2020
-Additional logic added for interpretation of ELISA used for detecting COVID-19 igG antibody in human serum.
+3. Additional logic added for interpretation of ELISA used for detecting COVID-19 igG antibody in human serum.
 The assay is intented for qualitative detection only.
 Reference: EAGLE Biosciences EDI Novel Coronavirus COVID-19 IgG ELISA Kit.
 """
@@ -41,7 +45,7 @@ class COV:
         # self.convert_button.pack(pady=10)
 
         # Button for analyzing RT_PCR data
-        self.convert_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=20)
+        self.convert_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=30)
         self.convert_button.pack(pady=10)
 
         # Button for converting Meditch to BSI (COVID formatting)
@@ -63,7 +67,7 @@ class COV:
 
         # New button for antibody testing
         self.convert_button4 = Button(master, text="Select ELISA file to analyze", command=self.antibodyprocess,
-                                      width=35)
+                                      width=30)
         self.convert_button4.pack(pady=10)
 
 
@@ -132,8 +136,10 @@ class COV:
         # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N2') & (df['CT'].isnull()), 'HSC_N2'] = 'passed'
         # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'N2') & (df['CT'].notnull()), 'HSC_N2'] = 'failed'
         # df['HSC_RP'] = None  # initial value
-        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value), 'HSC_RP'] = 'passed'
-        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] > ct_value), 'HSC_RP'] = 'failed'
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value),
+        #        'HSC_RP'] = 'passed'
+        # df.loc[(df['Sample Name'] == 'HSC') & (df['Target Name'] == 'RP') & (df['CT'] > ct_value),
+        #        'HSC_RP'] = 'failed'
 
         # Updated - Create results columns for HSC - human specimen control (extraction control) with full sample name
         df['HSC_N1'] = None  # initial value
@@ -278,7 +284,6 @@ class COV:
         # # Filter for samples (exclude controls)
         # sf = df[df['Sample Name'].apply(lambda x: x not in ['NTC', 'HSC', 'nCoVPC',
         #                                                     np.NaN])].copy(deep=True).sort_values(by=['Sample Name'])
-
 
         # Updated - Drop Sample Names that appear as NaN in 7500 output
         sf_orig = df.dropna(subset=['Sample Name'])
