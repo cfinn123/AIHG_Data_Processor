@@ -609,12 +609,17 @@ class COV:
                 logging.info(' Number of negative controls run: ' + str(neg_count))
                 logging.info(' Number of positive controls run: ' + str(pos_count))
                 logging.info('\n')
-                logging.info(' Absorbance of positive control: ', + str(xPC))
+                logging.info(' Absorbance of positive control: ' + str(xPC))
                 logging.info(' Average absorbance of negative control(s): ' + str(xNC))
+                logging.info('\n')
+                logging.info(
+                    ' Average absorbance of negative control less than 0.25? ' + (xNC < neg_ctrl_avg_value_threshold))
+                logging.info(' Absorbance of positive control greater than 0.30? ' + (xPC > pos_ctrl_value_threshold))
                 logging.info('\n')
                 logging.info(' Positive cutoff: ' + str(positive_cutoff.round(5)))
                 logging.info(' Negative cutoff: ' + str(negative_cutoff.round(5)))
                 logging.info('\n')
+
                 logging.info(' Number of samples run: ' + str(len(samples['Sample'].unique().tolist())))
                 logging.info('Samples run: ')
                 logging.info(str(samples['Sample'].unique()))
