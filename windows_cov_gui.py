@@ -143,19 +143,19 @@ class COV:
 
         # Updated - Create results columns for HSC - human specimen control (extraction control) with full sample name
         df['HSC_N1'] = None  # initial value
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N1') & (df['CT'].isnull()),
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['Target Name'] == 'N1') & (df['CT'].isnull()),
                'HSC_N1'] = 'passed'
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N1') & (df['CT'].notnull()),
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['Target Name'] == 'N1') & (df['CT'].notnull()),
                'HSC_N1'] = 'failed'
         df['HSC_N2'] = None  # initial value
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N2') & (df['CT'].isnull()),
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['Target Name'] == 'N2') & (df['CT'].isnull()),
                'HSC_N2'] = 'passed'
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'N2') & (df['CT'].notnull()),
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['Target Name'] == 'N2') & (df['CT'].notnull()),
                'HSC_N2'] = 'failed'
         df['HSC_RP'] = None  # initial value
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value),
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['Target Name'] == 'RP') & (df['CT'] <= ct_value),
                'HSC_RP'] = 'passed'
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['Target Name'] == 'RP') & (df['CT'] > ct_value),
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['Target Name'] == 'RP') & (df['CT'] > ct_value),
                'HSC_RP'] = 'failed'
 
         # Create results columns for nCoVPC - novel Coronavirus control (positive control)
@@ -195,12 +195,14 @@ class COV:
 
         # Updated - Create column for aggregate results of HSC -extraction control
         df['Extraction_control'] = None
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['HSC_N1'] == 'passed')
-               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_N2'] == 'passed')
-               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_RP'] == 'passed'), 'Extraction_control'] = 'passed'
-        df.loc[(df['Sample Name'].str.contains("NEG")) & (df['HSC_N1'] == 'failed')
-               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_N2'] == 'failed')
-               | (df['Sample Name'].str.contains("NEG")) & (df['HSC_RP'] == 'failed'), 'Extraction_control'] = 'failed'
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['HSC_N1'] == 'passed')
+               | (df['Sample Name'].str.contains("NEG", case=False)) & (df['HSC_N2'] == 'passed')
+               | (df['Sample Name'].str.contains("NEG", case=False)) & (df['HSC_RP'] == 'passed'),
+               'Extraction_control'] = 'passed'
+        df.loc[(df['Sample Name'].str.contains("NEG", case=False)) & (df['HSC_N1'] == 'failed')
+               | (df['Sample Name'].str.contains("NEG", case=False)) & (df['HSC_N2'] == 'failed')
+               | (df['Sample Name'].str.contains("NEG", case=False)) & (df['HSC_RP'] == 'failed'),
+               'Extraction_control'] = 'failed'
 
         # Create column for aggregate results of nCoVPC - positive control
         df['Positive_control'] = None
@@ -227,7 +229,8 @@ class COV:
 
         # Updated - Filter data frame to only include controls and selected columns
         controls_filtered = df.loc[
-            (df['Sample Name'] == 'NTC') | (df['Sample Name'].str.contains("NEG")) | (df['Sample Name'] == 'nCoVPC')]
+            (df['Sample Name'] == 'NTC') | (df['Sample Name'].str.contains("NEG", case=False)) |
+            (df['Sample Name'] == 'nCoVPC')]
         controls = controls_filtered.loc[:, ['Sample Name', 'Target Name', 'CT', 'Negative_control',
                                              'Extraction_control', 'Positive_control']]
         # Define list of columns to join
@@ -288,9 +291,12 @@ class COV:
         # Updated - Drop Sample Names that appear as NaN in 7500 output
         sf_orig = df.dropna(subset=['Sample Name'])
 
+        # Make all Sample Name values uppercase
+        # sf_orig['Sample Name'] = sf_orig['Sample Name'].str.upper()
+
         # Updated - Filter for samples (exclude controls)
         controls_list = ['NTC', 'NEG', 'nCoVPC']
-        sf = sf_orig[~sf_orig['Sample Name'].str.contains('|'.join(controls_list))]\
+        sf = sf_orig[~sf_orig['Sample Name'].str.contains('|'.join(controls_list), case=False)]\
             .copy(deep=True).sort_values(by=['Sample Name'])
 
         # Sanity check
@@ -461,7 +467,6 @@ class COV:
     #     for file in filelist:
     #         list.append(os.path.split(file)[1])
 
-
     # TODO: ADD dirstatsprocess
     # def dirstatsprocess(self):
     #     dir = filedialog.askdirectory()
@@ -542,10 +547,10 @@ class COV:
                 print("Positive cutoff: ", positive_cutoff.round(5))
                 negative_cutoff = 0.9 * (xNC + 0.18)
                 print("Negative cutoff: ", negative_cutoff.round(5))
-        # elif xNC > neg_ctrl_avg_value_threshold:
-        #     print("WARNING: The average absorbance of negative control exceeds the threshold of 0.25.")
-        # elif xPC < pos_ctrl_value_threshold:
-        #     print("WARNING: The absorbance of the positive control is less than the threshold of 0.30.")
+        #   elif xNC > neg_ctrl_avg_value_threshold:
+        #       print("WARNING: The average absorbance of negative control exceeds the threshold of 0.25.")
+        #   elif xPC < pos_ctrl_value_threshold:
+        #       print("WARNING: The absorbance of the positive control is less than the threshold of 0.30.")
 
                 # Make results table
                 sampledf = meanod_df.copy(deep=True)
@@ -606,20 +611,21 @@ class COV:
                 logging.info(' Run information: ')
                 logging.info('\n' + str(runinfo))
                 logging.info('\n')
-                logging.info(' Number of negative controls run: ' + str(neg_count))
                 logging.info(' Number of positive controls run: ' + str(pos_count))
+                logging.info(' Number of negative controls run: ' + str(neg_count))
                 logging.info('\n')
                 logging.info(' Absorbance of positive control: ' + str(xPC))
                 logging.info(' Average absorbance of negative control(s): ' + str(xNC))
                 logging.info('\n')
+                logging.info('Quality Control: ')
+                logging.info(' Absorbance of positive control greater than 0.30? ' + (xPC > pos_ctrl_value_threshold))
                 logging.info(
                     ' Average absorbance of negative control less than 0.25? ' + (xNC < neg_ctrl_avg_value_threshold))
-                logging.info(' Absorbance of positive control greater than 0.30? ' + (xPC > pos_ctrl_value_threshold))
                 logging.info('\n')
+                logging.info(' Cutoffs (as determined by absorbance of the negative control): ')
                 logging.info(' Positive cutoff: ' + str(positive_cutoff.round(5)))
                 logging.info(' Negative cutoff: ' + str(negative_cutoff.round(5)))
                 logging.info('\n')
-
                 logging.info(' Number of samples run: ' + str(len(samples['Sample'].unique().tolist())))
                 logging.info('Samples run: ')
                 logging.info(str(samples['Sample'].unique()))
