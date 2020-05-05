@@ -5,12 +5,12 @@
 ### Part 1 - Process results of RT-PCR assay
 - Compare the Ct values to expected threshold for each of three reactions (N1, N2, RNaseP).
   - N1 and N2 reactions need to meet a specific Ct threshold (per CDC reference document < 40) to qualify as positive result. 
-  - A log is made detailing experiment information and the Ct values from NTC (negative), HSC (extraction), and nCoVPC (positive) controls.
+  - A log file is made detailing experiment information and the Ct values from NTC (negative), HSC (extraction), and nCoVPC (positive) controls.
   
 ### Part 2 - Convert Meditech to BSI out file for upload into BSI (COVID-friendly)
 - Convert output files from Meditch to BSI R script for upload into BSI.
-- Duplicate selected columns.
-- Change study field to COVID.
+  - Duplicate selected columns.
+  - Change study field to COVID.
 
 ### Part 3 - Process results of ELISA assay
 - Calculate average absorbance for all samples and controls. 
