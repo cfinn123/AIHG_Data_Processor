@@ -10,7 +10,7 @@ Date of addition: April 5, 2020
 for upload into BSI.
 
 Date of addition: April 29, 2020
-3. Additional logic added for interpretation of ELISA used for detecting COVID-19 igG antibody in human serum.
+3. Additional logic added for interpretation of ELISA used for detecting COVID-19 IgG antibody in human serum.
 The assay is intented for qualitative detection only.
 Reference: EAGLE Biosciences EDI Novel Coronavirus COVID-19 IgG ELISA Kit.
 """
@@ -45,31 +45,46 @@ class COV:
         # self.convert_button.pack(pady=10)
 
         # Button for analyzing RT_PCR data
-        self.convert_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=30)
-        self.convert_button.pack(pady=10)
+        self.rtpcr_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=30)
+        self.rtpcr_button.pack(pady=10)
 
         # Button for converting Meditch to BSI (COVID formatting)
-        self.convert_button1 = Button(master, text='Select file to convert for BSI', command=self.bsiprocess, width=30)
-        self.convert_button1.pack(pady=10)
+        self.bsiconvert_button = Button(master, text='Select file to convert for BSI', command=self.bsiprocess, width=30)
+        self.bsiconvert_button.pack(pady=10)
 
         # TODO: New button for stats
-        # self.convert_button2 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
+        # self.convert_button5 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
         #                               width=40)
-        # self.convert_button2.pack(pady=10)
+        # self.convert_button5.pack(pady=10)
 
-        # self.convert_button3 = Button(master, text='Generate stats for entire directory',
+        # self.convert_button6 = Button(master, text='Generate stats for entire directory',
         #                               command=self.dirstatsprocess, width=40)
-        # self.convert_button3.pack(pady=10)
+        # self.convert_button6.pack(pady=10)
 
-        # self.convert_button = Button(master, text="COVID-19 RT-qPCR Data Processing",
-        #                              command=self.dataprocess, width=45)
-        # self.convert_button.grid(row=1, column=1)
+        # New buttons for antibody testing
+        self.biomek_button = Button(master, text="Select Biomek file", command=self.biomekprocess, width=30)
+        self.biomek_button.pack(pady=10)
 
-        # New button for antibody testing
-        self.convert_button4 = Button(master, text="Select ELISA file to analyze", command=self.antibodyprocess,
-                                      width=30)
-        self.convert_button4.pack(pady=10)
+        self.elisa_button = Button(master, text="Select ELISA file", command=self.antibodyprocess, width=30)
+        self.elisa_button.pack(pady=10)
 
+        # Help button
+        self.info_button = Button(master, text="Help", command=self.info, width=10)
+        self.info_button.pack(pady=10)
+
+    def info(self):
+        messages = ["1. For analysis of RT-PCR data, press 'Select RT-PCR file to analyze' "
+                    "and navigate to the file of interest in the file browser. The results and "
+                    "associated log files will be generated.",
+                    "2. For file conversion for upload into BSI, press 'Select file to convert for BSI' "
+                    "and navigate to the output file of the 'Meditech toBSI' R-script. The COVID-friendly BSI "
+                    "Excel file will be created in the same directory as the specified input file.",
+                    "3. For analysis of ELISA data, if the experiment was performed using the Biomek, first press "
+                    "'Select Biomek file' and navigate to the appropriate file from the Biomek. "
+                    "Second, press 'Select ELISA file' and navigate to the ELISA output file. "
+                    "If the ELISA experiment was set up manually, press 'Select ELISA file' and navigate to the "
+                    "appropriate file."]
+        messagebox.showinfo("Help", "\n".join(messages))
 
     def dataprocess(self):
         # Ingest input file
@@ -495,6 +510,13 @@ class COV:
     #
     #     fulldf.reset_index()
 
+    # TODO: Add biomekprocess
+    def biomekprocess(self):
+        messagebox.showinfo("test", "this is only a test")
+        # biomekpath = filedialog.askopenfilename()
+        # Read in file
+        # biodf = pd.read_csv(biomekpath, sep='')
+
     # TODO: ADD antibodyprocess
     def antibodyprocess(self):
         abpath = filedialog.askopenfilename()
@@ -618,9 +640,9 @@ class COV:
                 logging.info(' Average absorbance of negative control(s): ' + str(xNC))
                 logging.info('\n')
                 logging.info('Quality Control: ')
-                logging.info(' Absorbance of positive control greater than 0.30? ' + (xPC > pos_ctrl_value_threshold))
+                logging.info(' Absorbance of positive control greater than 0.30? ' + str(xPC > pos_ctrl_value_threshold))
                 logging.info(
-                    ' Average absorbance of negative control less than 0.25? ' + (xNC < neg_ctrl_avg_value_threshold))
+                    ' Average absorbance of negative control less than 0.25? ' + str(xNC < neg_ctrl_avg_value_threshold))
                 logging.info('\n')
                 logging.info(' Cutoffs (as determined by absorbance of the negative control): ')
                 logging.info(' Positive cutoff: ' + str(positive_cutoff.round(5)))
