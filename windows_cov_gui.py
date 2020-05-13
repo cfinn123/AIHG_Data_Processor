@@ -11,7 +11,7 @@ for upload into BSI.
 
 Date of addition: April 29, 2020
 3. Additional logic added for interpretation of ELISA used for detecting COVID-19 IgG antibody in human serum.
-The assay is intented for qualitative detection only.
+The assay is intended for qualitative detection only.
 Reference: EAGLE Biosciences EDI Novel Coronavirus COVID-19 IgG ELISA Kit.
 """
 
@@ -25,6 +25,7 @@ import time
 import logging
 from PIL import ImageTk, Image
 import numpy as np
+import re
 
 root = Tk()
 root.configure(bg='white')
@@ -40,33 +41,30 @@ class COV:
         self.master = master
         master.title("COVID-19 Data Processor")
 
-        # self.convert_button = Button(master, text="Select input file",
-        #                              command=self.dataprocess, width=13)
-        # self.convert_button.pack(pady=10)
-
         # Button for analyzing RT_PCR data
         self.rtpcr_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=30)
         self.rtpcr_button.pack(pady=10)
 
         # Button for converting Meditch to BSI (COVID formatting)
-        self.bsiconvert_button = Button(master, text='Select file to convert for BSI', command=self.bsiprocess, width=30)
+        self.bsiconvert_button = Button(master, text='Select file to convert for BSI',
+                                        command=self.bsiprocess, width=30)
         self.bsiconvert_button.pack(pady=10)
+
+        # New buttons for antibody testing
+        # Manual setup
+        self.eagle_elisa_button = Button(master, text="Select ELISA file (EAGLE setup)",
+                                          command=self.antibodyprocess, width=30)
+        self.eagle_elisa_button.pack(pady=10)
+
 
         # TODO: New button for stats
         # self.convert_button5 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
         #                               width=40)
         # self.convert_button5.pack(pady=10)
 
-        # self.convert_button6 = Button(master, text='Generate stats for entire directory',
-        #                               command=self.dirstatsprocess, width=40)
-        # self.convert_button6.pack(pady=10)
-
-        # New buttons for antibody testing
-        self.biomek_button = Button(master, text="Select Biomek file", command=self.biomekprocess, width=30)
-        self.biomek_button.pack(pady=10)
-
-        self.elisa_button = Button(master, text="Select ELISA file", command=self.antibodyprocess, width=30)
-        self.elisa_button.pack(pady=10)
+        self.dirstatsbutton = Button(master, text='Select "resulting_completed" directory',
+                                      command=self.dirstatsresults, width=40)
+        self.dirstatsbutton.pack(pady=10)
 
         # Help button
         self.info_button = Button(master, text="Help", command=self.info, width=10)
@@ -77,14 +75,12 @@ class COV:
                     "and navigate to the file of interest in the file browser. The results and "
                     "associated log files will be generated.",
                     "2. For file conversion for upload into BSI, press 'Select file to convert for BSI' "
-                    "and navigate to the output file of the 'Meditech toBSI' R-script. The COVID-friendly BSI "
+                    "and navigate to the output file of the 'Meditech to BSI' R-script. The COVID-friendly BSI "
                     "Excel file will be created in the same directory as the specified input file.",
-                    "3. For analysis of ELISA data, if the experiment was performed using the Biomek, first press "
-                    "'Select Biomek file' and navigate to the appropriate file from the Biomek. "
-                    "Second, press 'Select ELISA file' and navigate to the ELISA output file. "
-                    "If the ELISA experiment was set up manually, press 'Select ELISA file' and navigate to the "
-                    "appropriate file."]
-        messagebox.showinfo("Help", "\n".join(messages))
+                    "3. For analysis of ELISA, press 'Select ELISA file (EAGLE setup)'. "
+                    "Proceed to navigate to the appropriate ELISA results file.",
+                    "4. For statistics and plots, please follow the on screen instructions."]
+        messagebox.showinfo("Help", "\n\n".join(messages))
 
     def dataprocess(self):
         # Ingest input file
@@ -468,9 +464,6 @@ class COV:
         current.to_excel(writer, 'Sheet1', index=False)
         writer.save()
 
-        # Write out new file
-        # current.to_csv(outname1bsi + '\\' + bsicleanname + bsi_base, sep='\t', index=False)
-
         messagebox.showinfo("Complete", "File Successfully Converted for BSI!")
 
     #  TODO: Add statsprocess
@@ -482,8 +475,113 @@ class COV:
     #     for file in filelist:
     #         list.append(os.path.split(file)[1])
 
-    # TODO: ADD dirstatsprocess
-    # def dirstatsprocess(self):
+    # TODO: ADD dirstatsresults
+    def dirstatsresults(self):
+        dir = filedialog.askdirectory()
+        files_csv = [f for f in os.listdir(dir) if f.endswith('csv')]
+
+        file_list = list()
+
+        for file in files_csv:
+            df = pd.read_csv(file, sep=",", header=None, skiprows=1)
+            df['filename'] = file
+            file_list.append(df)
+
+        compiled_results = pd.concat(file_list, axis=0, ignore_index=True)
+
+        compiled_results.dropna(axis=1, how='all', inplace=True)
+
+        compiled_results.columns = ['Sample_ID', 'Result_N1', 'Result_N2', 'Result_RP', 'Result_Interpretation',
+                                    'Report', 'Actions', 'Filename']
+
+        compiled_results.dropna(axis=0, subset=['Sample_ID'], inplace=True)
+
+        exclude_list = ['LOW1', 'LOW2', 'LOW3', 'MID1', 'MID2', 'MID3', 'Mod-1_No_90', 'Mod-2_No_90', 'Mod-3_No_90',
+                        'Low-1_No_90', 'Low-2_No_90', 'Low-3_No_90', 'Low_1', 'Low_2', 'Low_3', 'Mod_1', 'Mod_2',
+                        'Mod_3', 'State1_04022020', 'State2_04022020', 'State3_04022020', 'State4_04022020',
+                        'State5_04022020', 'State6_04022020', 'State7_04022020', 'State8_04022020', 'State_1',
+                        '032420-7-M', '032420-4-M', '032420-3-M', 'Low-4_QS', 'Low-5_QS', 'Low-6_QS', 'Mod-4_QS',
+                        'Mod-5_QS', 'Mod-6_QS', 'Low-1_QS', 'Low-2_QS', 'Low-3_QS', 'Mod-1_QS', 'Mod-2_QS', 'Mod-3_QS',
+                        'H2O1', 'H2O2', 'H2O3', '0.16_A_Validation', '0.16_B_Validation', '0.8_A_Validation',
+                        '0.8_B_Validation', '032420-5-M', '032420-8-M', '_NEG_', '20_A_Validation', '20_B_Validation',
+                        '40_state3', '4_A_Validation', '4_B_Validation']
+
+        cr2 = compiled_results[~compiled_results['Sample_ID'].str.contains('|'.join(exclude_list), case=False)].copy(
+            deep=True)
+
+        cr2['Month'], cr2['Day'], cr2['Year'], cr2['Residual'] = cr2['Filename'].str.split('_', 3).str
+
+        cr2['datetime'] = pd.to_datetime(cr2[['Month', 'Day', 'Year']])
+
+        cr2 = cr2.sort_values('datetime', ascending=True)
+
+        cr2['positive'] = None
+        cr2.loc[(cr2['Result_Interpretation'] == '2019-nCoV detected'), 'positive'] = 'positive'
+        cr2['negative'] = None
+        cr2.loc[(cr2['Result_Interpretation'] == '2019-nCoV not detected'), 'negative'] = 'negative'
+        cr2['inconclusive'] = None
+        cr2.loc[(cr2['Result_Interpretation'] == 'Inconclusive Result'), 'inconclusive'] = 'inconclusive'
+
+        cols = ['positive', 'negative', 'inconclusive']
+        cr2['results'] = cr2[cols].apply(lambda x: ''.join(x.dropna()), axis=1)
+
+        test = cr2.groupby(cr2['datetime'].dt.week)['results'].value_counts().unstack(1)
+        newdf = test.add_suffix("_results").reset_index()
+
+        new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
+        newdf[new_cols] = newdf[new_cols].applymap(np.int64)
+
+        # Prep outpath and output file name
+        timestr = time.strftime('%m_%d_%Y')
+
+        # This portion works for Unix systems - see section below for Windows.
+        outname = os.path.split(path)
+        outname1 = outname[0]
+        outfilename = outname[1]
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../statistics_and_plots')
+        normpath = os.path.normpath(newpath)
+        new_base = timestr + 'AIHG_2019-nCoVRT-PCR_weekly_results.png'
+
+        # Plotting
+        dates = np.arange(len(newdf))
+        width = 0.3
+        opacity = 0.4
+
+        plt.figure(figsize=(10, 12))
+
+        fig, ax = plt.subplots()
+
+        ax.barh(dates, newdf['negative_results'], width, alpha=opacity, color="blue", label="Negative")
+        ax.barh(dates + width, newdf['positive_results'], width, alpha=opacity, color="red", label="Positive")
+        ax.barh(dates + (width * 2), newdf['inconclusive_results'], width, alpha=opacity, color="green",
+                label="Inconclusive")
+        ax.set(yticks=dates + width, yticklabels=newdf['datetime'], ylim=[2 * width - 1, len(newdf)])
+        ax.legend()
+        ax.set_ylabel("2020 Week Number")
+        ax.set_xlabel("Count")
+        ax.set_title("AIHG 2019-nCoV RT-PCR Weekly Results")
+
+        for i, v in enumerate(newdf['negative_results']):
+            ax.text(v + 4, i, str(v), color="blue", va="center")
+
+        for o, b in enumerate(newdf['positive_results']):
+            ax.text(b + 4, o + 0.3, str(b), color="red", va="center")
+
+        for p, n in enumerate(newdf['inconclusive_results']):
+            ax.text(n + 4, p + 0.6, str(n), color="green", va="center")
+
+        fig.tight_layout()
+
+        fig.subplots_adjust(right=1.75)
+
+        fig.savefig(normpath + '\\' + new_base, dpi=300, bbox_inches="tight")
+
+        messagebox.showinfo("Complete", "Plotting Successful!")
+
+    # This section works off of xls output from QuantStudio, Viia, and 7500 Fast instruments
     #     dir = filedialog.askdirectory()
     #     files_xls2 = [f for f in os.listdir(dir) if f.endswith('xls')]
     #
@@ -510,14 +608,8 @@ class COV:
     #
     #     fulldf.reset_index()
 
-    # TODO: Add biomekprocess
-    def biomekprocess(self):
-        messagebox.showinfo("test", "this is only a test")
-        # biomekpath = filedialog.askopenfilename()
-        # Read in file
-        # biodf = pd.read_csv(biomekpath, sep='')
 
-    # TODO: ADD antibodyprocess
+    # Manual antibodyprocess
     def antibodyprocess(self):
         abpath = filedialog.askopenfilename()
         # Read in file - encoding is important
