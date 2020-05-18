@@ -20,3 +20,9 @@
     - Positive cutoff = 1.1 * (xNC + 0.18)
     - Negative cutoff = 0.9 * (xNC + 0.18)
   - A log file is made detailing experiment information. 
+
+### Part 4 - Statistics and plots of RT-PCR results (in development)
+- Plot cumulative results of RT-PCR testing on a per week basis. 
+- Generate per-assay statistics of controls over time. 
+
+

@@ -1,7 +1,8 @@
 """
-By: Jeff Beck and Casey Finnicum
+By: Jeffrey Beck and Casey Finnicum
+
 Date of inception: March 16, 2020
-1. Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics.
+1. Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics (AIHG).
 Ingests files from RT-qPCR assay and creates summarized results for upload.
 Reference: CDC-006-00019, Revision: 02
 
@@ -13,6 +14,11 @@ Date of addition: April 29, 2020
 3. Additional logic added for interpretation of ELISA used for detecting COVID-19 IgG antibody in human serum.
 The assay is intended for qualitative detection only.
 Reference: EAGLE Biosciences EDI Novel Coronavirus COVID-19 IgG ELISA Kit.
+
+Date of addition: May 13, 2020
+4. Added a button for plotting cumulative positive, negative, inconclusive results for all testing done at AIHG.
+The button works at the level of the "resulting_completed" directory within the RT_PCR/results/processed parent
+directory.
 """
 
 from tkinter import *
@@ -26,6 +32,8 @@ import logging
 from PIL import ImageTk, Image
 import numpy as np
 import re
+import glob
+import matplotlib.pyplot as plt
 
 root = Tk()
 root.configure(bg='white')
@@ -483,7 +491,7 @@ class COV:
         file_list = list()
 
         for file in files_csv:
-            df = pd.read_csv(file, sep=",", header=None, skiprows=1)
+            df = pd.read_csv(dir + "\\" + file, sep=",", header=None, skiprows=1)
             df['filename'] = file
             file_list.append(df)
 
@@ -526,7 +534,7 @@ class COV:
         cr2['results'] = cr2[cols].apply(lambda x: ''.join(x.dropna()), axis=1)
 
         test = cr2.groupby(cr2['datetime'].dt.week)['results'].value_counts().unstack(1)
-        newdf = test.add_suffix("_results").reset_index()
+        newdf = test.add_suffix("_results").reset_index().fillna(0)
 
         new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
         newdf[new_cols] = newdf[new_cols].applymap(np.int64)
@@ -535,15 +543,15 @@ class COV:
         timestr = time.strftime('%m_%d_%Y')
 
         # This portion works for Unix systems - see section below for Windows.
-        outname = os.path.split(path)
+        outname = os.path.split(dir)
         outname1 = outname[0]
         outfilename = outname[1]
 
         # For Windows-based file paths
-        mypath = os.path.abspath(os.path.dirname(path))
-        newpath = os.path.join(mypath, '../statistics_and_plots')
+        mypath = os.path.abspath(os.path.dirname(dir))
+        newpath = os.path.join(mypath, './statistics_and_plots')
         normpath = os.path.normpath(newpath)
-        new_base = timestr + 'AIHG_2019-nCoVRT-PCR_weekly_results.png'
+        new_base = timestr + '_AIHG_2019-nCoVRT-PCR_weekly_results.png'
 
         # Plotting
         dates = np.arange(len(newdf))
