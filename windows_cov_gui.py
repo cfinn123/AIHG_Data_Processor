@@ -70,9 +70,13 @@ class COV:
         #                               width=40)
         # self.convert_button5.pack(pady=10)
 
-        self.dirstatsbutton = Button(master, text='Select "resulting_completed" directory',
-                                      command=self.dirstatsresults, width=40)
+        self.dirstatsbutton = Button(master, text='Weekly results - Select "resulting_completed" directory',
+                                      command=self.dirstatsresults, width=50)
         self.dirstatsbutton.pack(pady=10)
+
+        self.dirstatsbutton2 = Button(master, text='Monthly results - Select "resulting_completed" directory',
+                                      command=self.dirstatsresults2, width=50)
+        self.dirstatsbutton2.pack(pady=10)
 
         # Help button
         self.info_button = Button(master, text="Help", command=self.info, width=10)
@@ -483,7 +487,7 @@ class COV:
     #     for file in filelist:
     #         list.append(os.path.split(file)[1])
 
-    # TODO: ADD dirstatsresults
+    # TODO: ADD dirstatsresults - Weekly results
     def dirstatsresults(self):
         dir = filedialog.askdirectory()
         files_csv = [f for f in os.listdir(dir) if f.endswith('csv')]
@@ -615,6 +619,115 @@ class COV:
     #         fulldf = fulldf.append(df)
     #
     #     fulldf.reset_index()
+
+        # TODO: ADD dirstatsresults2 - Montly results
+        def dirstatsresults2(self):
+            dir = filedialog.askdirectory()
+            files_csv = [f for f in os.listdir(dir) if f.endswith('csv')]
+
+            file_list = list()
+
+            for file in files_csv:
+                df = pd.read_csv(dir + "\\" + file, sep=",", header=None, skiprows=1)
+                df['filename'] = file
+                file_list.append(df)
+
+            compiled_results = pd.concat(file_list, axis=0, ignore_index=True)
+
+            compiled_results.dropna(axis=1, how='all', inplace=True)
+
+            compiled_results.columns = ['Sample_ID', 'Result_N1', 'Result_N2', 'Result_RP', 'Result_Interpretation',
+                                        'Report', 'Actions', 'Filename']
+
+            compiled_results.dropna(axis=0, subset=['Sample_ID'], inplace=True)
+
+            exclude_list = ['LOW1', 'LOW2', 'LOW3', 'MID1', 'MID2', 'MID3', 'Mod-1_No_90', 'Mod-2_No_90', 'Mod-3_No_90',
+                            'Low-1_No_90', 'Low-2_No_90', 'Low-3_No_90', 'Low_1', 'Low_2', 'Low_3', 'Mod_1', 'Mod_2',
+                            'Mod_3', 'State1_04022020', 'State2_04022020', 'State3_04022020', 'State4_04022020',
+                            'State5_04022020', 'State6_04022020', 'State7_04022020', 'State8_04022020', 'State_1',
+                            '032420-7-M', '032420-4-M', '032420-3-M', 'Low-4_QS', 'Low-5_QS', 'Low-6_QS', 'Mod-4_QS',
+                            'Mod-5_QS', 'Mod-6_QS', 'Low-1_QS', 'Low-2_QS', 'Low-3_QS', 'Mod-1_QS', 'Mod-2_QS',
+                            'Mod-3_QS',
+                            'H2O1', 'H2O2', 'H2O3', '0.16_A_Validation', '0.16_B_Validation', '0.8_A_Validation',
+                            '0.8_B_Validation', '032420-5-M', '032420-8-M', '_NEG_', '20_A_Validation',
+                            '20_B_Validation',
+                            '40_state3', '4_A_Validation', '4_B_Validation']
+
+            cr2 = compiled_results[
+                ~compiled_results['Sample_ID'].str.contains('|'.join(exclude_list), case=False)].copy(
+                deep=True)
+
+            cr2['Month'], cr2['Day'], cr2['Year'], cr2['Residual'] = cr2['Filename'].str.split('_', 3).str
+
+            cr2['datetime'] = pd.to_datetime(cr2[['Month', 'Day', 'Year']])
+
+            cr2 = cr2.sort_values('datetime', ascending=True)
+
+            cr2['positive'] = None
+            cr2.loc[(cr2['Result_Interpretation'] == '2019-nCoV detected'), 'positive'] = 'positive'
+            cr2['negative'] = None
+            cr2.loc[(cr2['Result_Interpretation'] == '2019-nCoV not detected'), 'negative'] = 'negative'
+            cr2['inconclusive'] = None
+            cr2.loc[(cr2['Result_Interpretation'] == 'Inconclusive Result'), 'inconclusive'] = 'inconclusive'
+
+            cols = ['positive', 'negative', 'inconclusive']
+            cr2['results'] = cr2[cols].apply(lambda x: ''.join(x.dropna()), axis=1)
+
+            test = cr2.groupby(cr2['datetime'].dt.month)['results'].value_counts().unstack(1)
+            newdf = test.add_suffix("_results").reset_index().fillna(0)
+
+            new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
+            newdf[new_cols] = newdf[new_cols].applymap(np.int64)
+
+            # Prep outpath and output file name
+            timestr = time.strftime('%m_%d_%Y')
+
+            # This portion works for Unix systems - see section below for Windows.
+            outname = os.path.split(dir)
+            outname1 = outname[0]
+            outfilename = outname[1]
+
+            # For Windows-based file paths
+            mypath = os.path.abspath(os.path.dirname(dir))
+            newpath = os.path.join(mypath, './statistics_and_plots')
+            normpath = os.path.normpath(newpath)
+            new_base = timestr + '_AIHG_2019-nCoVRT-PCR_monthly_results.png'
+
+            # Plotting
+            dates = np.arange(len(newdf))
+            width = 0.3
+            opacity = 0.4
+
+            plt.figure(figsize=(10, 12))
+
+            fig, ax = plt.subplots()
+
+            ax.barh(dates, newdf['negative_results'], width, alpha=opacity, color="blue", label="Negative")
+            ax.barh(dates + width, newdf['positive_results'], width, alpha=opacity, color="red", label="Positive")
+            ax.barh(dates + (width * 2), newdf['inconclusive_results'], width, alpha=opacity, color="green",
+                    label="Inconclusive")
+            ax.set(yticks=dates + width, yticklabels=newdf['datetime'], ylim=[2 * width - 1, len(newdf)])
+            ax.legend()
+            ax.set_ylabel("2020 Month Number")
+            ax.set_xlabel("Count")
+            ax.set_title("AIHG 2019-nCoV RT-PCR Monthly Results")
+
+            for i, v in enumerate(newdf['negative_results']):
+                ax.text(v + 4, i, str(v), color="blue", va="center")
+
+            for o, b in enumerate(newdf['positive_results']):
+                ax.text(b + 4, o + 0.3, str(b), color="red", va="center")
+
+            for p, n in enumerate(newdf['inconclusive_results']):
+                ax.text(n + 4, p + 0.6, str(n), color="green", va="center")
+
+            fig.tight_layout()
+
+            fig.subplots_adjust(right=1.75)
+
+            fig.savefig(normpath + '\\' + new_base, dpi=300, bbox_inches="tight")
+
+            messagebox.showinfo("Complete", "Plotting Successful!")
 
 
     # Manual antibodyprocess
