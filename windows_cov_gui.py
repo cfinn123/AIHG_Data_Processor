@@ -508,10 +508,6 @@ class COV:
         new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "N"), 'RP_Result'] = 'positive'
 
-        new_df = new_df[
-            ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
-             'RP_Result']]
-
         # Assess controls
         # Expected performance of controls
         """
@@ -563,16 +559,33 @@ class COV:
 
         new_df = new_df.drop(['Neg_ctrl', 'Ext_ctrl', 'Pos_ctrl'], axis=1)
 
+        # 2019-nCoV rRT-PCR Diagnostic Panel Results Interpretation Guide (page 32 of reference file)
+        new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'positive') & (new_df['RP_Result'].notnull()),
+               'Result_Interpretation'] = 'Positive'
+        new_df.loc[(new_df['N1_Result'] == 'positive') & (ne_df['N2_Result'] == 'negative') & (new_df['RP_Result'].notnull()),
+               'Result_Interpretation'] = 'Inconclusive'
+        new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'positive') & (new_df['RP_Result'].notnull()),
+               'Result_Interpretation'] = 'Inconclusive'
+        new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') & (new_df['RP_Result'] == 'positive'),
+               'Result_Interpretation'] = 'Not Detected'
+        new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') & (new_df['RP_Result'] == 'negative'),
+               'Result_Interpretation'] = 'Invalid'
+        
+        new_df = new_df[
+            ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
+             'RP_Result', 'Result_Interpretation', 'controls_result']]
+
         # Prepare the outpath for the processed data using a timestamp
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
 
         # For Windows-based file paths
         mypath = os.path.abspath(os.path.dirname(path))
-        newpath = os.path.join(mypath, '../../LIMS_test')
+        newpath = os.path.join(mypath, '../../processed/output_for_LIMS')
         normpath = os.path.normpath(newpath)
         new_base = timestr + '_covid_results.csv'
         new_df.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
+        messagebox.showinfo("Complete", "Data Processing Complete!")
 
 ## Convert Meditech to BSI file to BSI-friendly version
     def bsiprocess(self):
