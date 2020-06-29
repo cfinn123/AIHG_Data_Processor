@@ -58,14 +58,12 @@ class COV:
                                         command=self.bsiprocess, width=30)
         self.bsiconvert_button.pack(pady=10)
 
-        # New buttons for antibody testing
-        # Manual setup
+        # Button for manual antibody testing
         self.eagle_elisa_button = Button(master, text="Select ELISA file (EAGLE setup)",
                                           command=self.antibodyprocess, width=30)
         self.eagle_elisa_button.pack(pady=10)
 
-
-        # TODO: New button for stats
+        # TODO: Combine buttons for weekly/montly plotting
         # self.convert_button5 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
         #                               width=40)
         # self.convert_button5.pack(pady=10)
@@ -77,6 +75,13 @@ class COV:
         self.dirstatsbutton_month = Button(master, text='Monthly results - Select "resulting_completed" directory',
                                       command=self.dirstatsresultsmonth, width=50)
         self.dirstatsbutton_month.pack(pady=10)
+
+        # Button for LIMS-friendly output
+        self.lims_convert_button = Button(master, text="LIMS - Select RT-PCR file to analyze", command=self.limsprocess,
+                                          width=30)
+        self.lims_convert_button.pack(pady=10)
+
+        # Button for Meditech-friendly output - will need follow up prompt for selecting metadata file from dashboard
 
         # Help button
         self.info_button = Button(master, text="Help", command=self.info, width=10)
@@ -445,6 +450,131 @@ class COV:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
+## Make LIMS-friendly output
+    def limsprocess(self):
+        # Ingest input file
+        # ask the user for an input read in the file selected by the user
+        path = filedialog.askopenfilename()
+
+        # To accommodate either QuantStudio or ViiA7
+        df_orig = pd.read_excel("covid19_output/test_controls.xls", sheet_name="Results", header=None)
+        for row in range(df_orig.shape[0]):
+            for col in range(df_orig.shape[1]):
+                if df_orig.iat[row, col] == "Well":
+                    row_start = row
+                    break
+
+        # Subset raw file for only portion below "Well" and remainder of header
+        df = df_orig[row_start:]
+
+        # Header exists in row 1, make new header
+        new_header = df.iloc[0]
+        df = df[1:]
+        df.columns = new_header
+
+        # Adding a new line to handle the 'Cт' present in the header of the output file from the 7500 instrument
+        df.columns = df.columns.str.replace('Cт', 'CT')
+
+        # Convert 'undetermined' to 'NaN' for 'CT' column
+        df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+
+        # TODO: DEFINE CT VALUE HERE
+        ct_value = 40.00
+
+        # New code
+        pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT", "NOAMP"])
+        new_df = pd.DataFrame(pt.to_records()).rename(columns={'Target Name': 'index'})
+
+        newcols = {"Sample Name": "Sample_Name", "('CT', 'N1')": "N1_CT", "('CT', 'N2')": "N2_CT",
+                   "('CT', 'RP')": "RP_CT", "('NOAMP', 'N1')": "N1_NOAMP", "('NOAMP', 'N2')": "N2_NOAMP",
+                   "('NOAMP', 'RP')": "RP_NOAMP"}
+        new_df.columns = new_df.columns.map(newcols)
+
+        new_df['N1_Result'] = np.nan
+        new_df.loc[(new_df['N1_CT'].isnull()) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
+        new_df.loc[(new_df['N1_CT'] > ct_value), 'N1_Result'] = 'negative'
+        new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
+        new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "N"), 'N1_Result'] = 'positive'
+
+        new_df['N2_Result'] = np.nan
+        new_df.loc[(new_df['N2_CT'].isnull()) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
+        new_df.loc[(new_df['N2_CT'] > ct_value), 'N2_Result'] = 'negative'
+        new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
+        new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "N"), 'N2_Result'] = 'positive'
+
+        new_df['RP_Result'] = np.nan
+        new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+        new_df.loc[(new_df['RP_CT'] > ct_value), 'RP_Result'] = 'negative'
+        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "N"), 'RP_Result'] = 'positive'
+
+        new_df = new_df[
+            ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
+             'RP_Result']]
+
+        # Assess controls
+        # Expected performance of controls
+        """
+        ControlType   ExternalControlName Monitors        2019nCoV_N1 2019nCOV_N2 RnaseP  ExpectedCt
+        Positive      nCoVPC              Rgt Failure     +           +           +       <40
+        Negative      NTC                 Contamination   -           -           -       None
+        Extraction    HSC                 Extraction      -           -           +       <40
+
+        If any of the above controls do not exhibit the expected performance as described, the assay may have been set
+        up and/or executed improperly, or reagent or equipment malfunction could have occurred. Invalidate the run and
+        re-test.
+        """
+        new_df['Neg_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N1_CT'].isnull())) & (
+                    (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].isnull())) & (
+                               (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
+                           new_df['RP_CT'].isnull())), 'Neg_ctrl'] = "passed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N1_CT'].notnull())) | (
+                    (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].notnull())) | (
+                               (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
+                           new_df['RP_CT'].notnull())), 'Neg_ctrl'] = "failed"
+
+        new_df['Ext_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].isnull())) & (
+                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) & (
+                               (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
+                                   new_df['RP_CT'] <= ct_value)), 'Ext_ctrl'] = "passed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].notnull())) | (
+                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].notnull())) | (
+                               (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
+                                   new_df['RP_CT'] > ct_value)), 'Ext_ctrl'] = "failed"
+
+        new_df['Pos_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N1_CT'] <= ct_value)) & (
+                    (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] <= ct_value)) & (
+                               (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
+                                   new_df['RP_CT'] <= ct_value)), 'Pos_ctrl'] = "passed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N1_CT'] > ct_value)) | (
+                    (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] > ct_value)) | (
+                               (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
+                                   new_df['RP_CT'] > ct_value)), 'Pos_ctrl'] = "failed"
+
+        control_cols = ['Neg_ctrl', 'Ext_ctrl', 'Pos_ctrl']
+        new_df['controls_result'] = new_df[control_cols].apply(lambda x: ''.join(x.dropna()), axis=1)
+
+        new_df['controls_result'] = new_df['controls_result'].replace(r'^\s*$', np.nan, regex=True)
+
+        new_df = new_df.sort_values(by='Sample_Name')
+
+        new_df = new_df.drop(['Neg_ctrl', 'Ext_ctrl', 'Pos_ctrl'], axis=1)
+
+        # Prepare the outpath for the processed data using a timestamp
+        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../../LIMS_test')
+        normpath = os.path.normpath(newpath)
+        new_base = timestr + '_covid_results.csv'
+        new_df.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
+
+## Convert Meditech to BSI file to BSI-friendly version
     def bsiprocess(self):
         pathbsi = filedialog.askopenfilename()
         # read in file - output from Meditech to BSI script
