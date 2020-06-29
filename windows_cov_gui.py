@@ -457,7 +457,7 @@ class COV:
         path = filedialog.askopenfilename()
 
         # To accommodate either QuantStudio or ViiA7
-        df_orig = pd.read_excel("covid19_output/test_controls.xls", sheet_name="Results", header=None)
+        df_orig = pd.read_excel(path, sheet_name="Results", header=None)
         for row in range(df_orig.shape[0]):
             for col in range(df_orig.shape[1]):
                 if df_orig.iat[row, col] == "Well":
@@ -562,7 +562,7 @@ class COV:
         # 2019-nCoV rRT-PCR Diagnostic Panel Results Interpretation Guide (page 32 of reference file)
         new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'positive') & (new_df['RP_Result'].notnull()),
                'Result_Interpretation'] = 'Positive'
-        new_df.loc[(new_df['N1_Result'] == 'positive') & (ne_df['N2_Result'] == 'negative') & (new_df['RP_Result'].notnull()),
+        new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'negative') & (new_df['RP_Result'].notnull()),
                'Result_Interpretation'] = 'Inconclusive'
         new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'positive') & (new_df['RP_Result'].notnull()),
                'Result_Interpretation'] = 'Inconclusive'
@@ -570,7 +570,7 @@ class COV:
                'Result_Interpretation'] = 'Not Detected'
         new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') & (new_df['RP_Result'] == 'negative'),
                'Result_Interpretation'] = 'Invalid'
-        
+
         new_df = new_df[
             ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
              'RP_Result', 'Result_Interpretation', 'controls_result']]
