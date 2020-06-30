@@ -799,6 +799,9 @@ class COV:
         # Reset index
         runinfo.reset_index(drop=True)
 
+        # Prepare the outpath for the processed data using a timestamp
+        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
         # For Windows-based file paths
         newlogpath = os.path.join(mypath, '../../processed/logs')
         normlogpath = os.path.normpath(newlogpath)
@@ -828,9 +831,6 @@ class COV:
         logging.info(' Number of samples run: ' + str(len(sf['Sample_Name'].unique().tolist())))
         logging.info('Samples run: ')
         logging.info(str(sf['Sample_Name'].unique()))
-
-        # Prepare the outpath for the processed data using a timestamp
-        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
 
         # For Windows-based file paths
         mypath = os.path.abspath(os.path.dirname(path))
