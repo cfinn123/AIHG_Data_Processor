@@ -83,7 +83,7 @@ class COV:
 
         # Button for Meditech-friendly output - will need follow up prompt for selecting metadata file from dashboard
         self.meditech_button = Button(master, text="MEDITECH - Select RT-PCR file to analyze",
-                                      command=self.meditechprocess, width=30)
+                                      command=self.meditechprocess, width=40)
         self.meditech_button.pack(pady=10)
 
         # Help button
