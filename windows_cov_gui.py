@@ -780,6 +780,9 @@ class COV:
         outname1 = outname[0]
         outfilename = outname[1]
 
+        # Prepare the outpath for the processed data using a timestamp
+        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
         # For Windows-based file paths
         mypath = os.path.abspath(os.path.dirname(path))
         newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
@@ -798,9 +801,6 @@ class COV:
 
         # Reset index
         runinfo.reset_index(drop=True)
-
-        # Prepare the outpath for the processed data using a timestamp
-        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
 
         # For Windows-based file paths
         newlogpath = os.path.join(mypath, '../../processed/logs')
