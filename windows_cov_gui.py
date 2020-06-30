@@ -494,18 +494,21 @@ class COV:
         new_df.columns = new_df.columns.map(newcols)
 
         new_df['N1_Result'] = np.nan
+        new_df.loc[(new_df['N1_CT'].isnull()), 'N1_Result'] = "negative"
         new_df.loc[(new_df['N1_CT'].isnull()) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
         new_df.loc[(new_df['N1_CT'] > ct_value), 'N1_Result'] = 'negative'
         new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
         new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "N"), 'N1_Result'] = 'positive'
 
         new_df['N2_Result'] = np.nan
+        new_df.loc[(new_df['N2_CT'].isnull()), 'N2_Result'] = "negative"
         new_df.loc[(new_df['N2_CT'].isnull()) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] > ct_value), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "N"), 'N2_Result'] = 'positive'
 
         new_df['RP_Result'] = np.nan
+        new_df.loc[(new_df['RP_CT'].isnull()), 'RP_Result'] = "negative"
         new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] > ct_value), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
@@ -638,18 +641,21 @@ class COV:
         new_df.columns = new_df.columns.map(newcols)
 
         new_df['N1_Result'] = np.nan
+        new_df.loc[(new_df['N1_CT'].isnull()), 'N1_Result'] = "negative"
         new_df.loc[(new_df['N1_CT'].isnull()) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
         new_df.loc[(new_df['N1_CT'] > ct_value), 'N1_Result'] = 'negative'
         new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
         new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "N"), 'N1_Result'] = 'positive'
 
         new_df['N2_Result'] = np.nan
+        new_df.loc[(new_df['N2_CT'].isnull()), 'N2_Result'] = "negative"
         new_df.loc[(new_df['N2_CT'].isnull()) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] > ct_value), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "N"), 'N2_Result'] = 'positive'
 
         new_df['RP_Result'] = np.nan
+        new_df.loc[(new_df['RP_CT'].isnull()), 'RP_Result'] = "negative"
         new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] > ct_value), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
@@ -682,8 +688,8 @@ class COV:
                     (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) & (
                                (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
                                    new_df['RP_CT'] <= ct_value)), 'Ext_ctrl'] = "passed"
-        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].notnull())) | (
-                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].notnull())) | (
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].isnull())) | (
+                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) | (
                                (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
                                    new_df['RP_CT'] > ct_value)), 'Ext_ctrl'] = "failed"
 
@@ -774,6 +780,13 @@ class COV:
         outname1 = outname[0]
         outfilename = outname[1]
 
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
+        normpath = os.path.normpath(newpath)
+        new_base = timestr + '_covid_results_Meditech.csv'
+        sf.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
         info_orig = pd.read_excel(path, sheet_name="Results", header=None)
         for row2 in range(info_orig.shape[0]):
             for col2 in range(info_orig.shape[1]):
@@ -789,7 +802,7 @@ class COV:
         # For Windows-based file paths
         newlogpath = os.path.join(mypath, '../../processed/logs')
         normlogpath = os.path.normpath(newlogpath)
-        log_base = timestr + '_meditech_covid_output.log'
+        log_base = timestr + '_Meditech_covid_output.log'
         log_filename = normlogpath + '\\' + log_base
 
         # Define log file parameters
