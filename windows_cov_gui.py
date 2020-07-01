@@ -603,7 +603,7 @@ class COV:
     def meditechprocess(self):
         # Ingest input file
         # ask the user for an input read in the file selected by the user
-        messagebox.showinfo("Step 1", "Select RT-PCR file to analyze")
+        messagebox.showinfo("Select results file", "Select RT-PCR file to analyze")
         path = filedialog.askopenfilename()
 
         # To accommodate either QuantStudio or ViiA7
@@ -688,8 +688,8 @@ class COV:
                     (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) & (
                                (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
                                    new_df['RP_CT'] <= ct_value)), 'Ext_ctrl'] = "passed"
-        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].isnull())) | (
-                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) | (
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].notnull())) | (
+                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].notnull())) | (
                                (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
                                    new_df['RP_CT'] > ct_value)), 'Ext_ctrl'] = "failed"
 
@@ -739,9 +739,8 @@ class COV:
         samples = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
             .copy(deep=True).sort_values(by=['Sample_Name'])
 
-        # Add button for selecting file containing panel id
-        messagebox.showinfo("Step 2", "Select dashboard file containing panel ID")
-        path2 = filedialog.askopenfilename()
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
         paneldf = pd.read_csv(path2, header=0)
 
         # Merge results with panel id file
@@ -765,17 +764,11 @@ class COV:
         merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
         merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
 
-        # Info for log file
-        controls_list = ['NTC', 'NEG', 'nCoVPC']
-
         # controls df for log file
         controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)]\
             .copy(deep=True).sort_values(by=['Sample_Name'])
 
-        # samples df for log file
-        sf = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)]\
-            .copy(deep=True).sort_values(by=['Sample_Name'])
-
+        # For output
         outname = os.path.split(path)
         outname1 = outname[0]
         outfilename = outname[1]
@@ -788,7 +781,7 @@ class COV:
         newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
         normpath = os.path.normpath(newpath)
         new_base = timestr + '_covid_results_Meditech.csv'
-        sf.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+        merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
         info_orig = pd.read_excel(path, sheet_name="Results", header=None)
         for row2 in range(info_orig.shape[0]):
@@ -828,16 +821,9 @@ class COV:
                 'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
                 'occurred. Invalidate the run and re-test.'))
         logging.warning('\n')
-        logging.info(' Number of samples run: ' + str(len(sf['Sample_Name'].unique().tolist())))
+        logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
         logging.info('Samples run: ')
-        logging.info(str(sf['Sample_Name'].unique()))
-
-        # For Windows-based file paths
-        mypath = os.path.abspath(os.path.dirname(path))
-        newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
-        normpath = os.path.normpath(newpath)
-        new_base = timestr + '_covid_results.csv'
-        new_df.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+        logging.info(str(samples['Sample_Name'].unique()))
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
