@@ -957,7 +957,7 @@ class COV:
         week_df = week_group.add_suffix("_results").reset_index().fillna(0)
 
         new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
-        week_df[new_cols] = weed_df[new_cols].applymap(np.int64)
+        week_df[new_cols] = week_df[new_cols].applymap(np.int64)
 
         # Prep outpath and output file name
         timestr = time.strftime('%m_%d_%Y')
@@ -1043,7 +1043,7 @@ class COV:
         ax.barh(dates + width, month_df['positive_results'], width, alpha=opacity, color="red", label="Positive")
         ax.barh(dates + (width * 2), month_df['inconclusive_results'], width, alpha=opacity, color="green",
                 label="Inconclusive")
-        ax.set(yticks=dates + width, yticklabels=newdf['datetime'], ylim=[2 * width - 1, len(month_df) + 2])
+        ax.set(yticks=dates + width, yticklabels=month_df['datetime'], ylim=[2 * width - 1, len(month_df) + 2])
         ax.legend()
         ax.set_ylabel("2020 Month Number")
         ax.set_xlabel("Count")
