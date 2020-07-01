@@ -63,18 +63,20 @@ class COV:
                                           command=self.antibodyprocess, width=30)
         self.eagle_elisa_button.pack(pady=10)
 
-        # TODO: Combine buttons for weekly/montly plotting
         # self.convert_button5 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
         #                               width=40)
         # self.convert_button5.pack(pady=10)
 
-        self.dirstatsbutton_week = Button(master, text='Weekly results - Select "resulting_completed" directory',
-                                      command=self.dirstatsresultsweek, width=50)
-        self.dirstatsbutton_week.pack(pady=10)
+        self.dirplotbutton = Button(master, text='Plot results', command=self.dirplot, width=50)
+        self.dirplotbutton.pack(pady=10)
 
-        self.dirstatsbutton_month = Button(master, text='Monthly results - Select "resulting_completed" directory',
-                                      command=self.dirstatsresultsmonth, width=50)
-        self.dirstatsbutton_month.pack(pady=10)
+        # self.dirstatsbutton_week = Button(master, text='Weekly results - Select "resulting_completed" directory',
+        #                               command=self.dirstatsresultsweek, width=50)
+        # self.dirstatsbutton_week.pack(pady=10)
+        #
+        # self.dirstatsbutton_month = Button(master, text='Monthly results - Select "resulting_completed" directory',
+        #                               command=self.dirstatsresultsmonth, width=50)
+        # self.dirstatsbutton_month.pack(pady=10)
 
         # Button for LIMS-friendly output
         self.lims_convert_button = Button(master, text="LIMS - Select RT-PCR file to analyze", command=self.limsprocess,
@@ -870,8 +872,36 @@ class COV:
     #     for file in filelist:
     #         list.append(os.path.split(file)[1])
 
-    # TODO: ADD dirstatsresultsweek - Weekly results
-    def dirstatsresultsweek(self):
+    # This section works off of xls output from QuantStudio, Viia, and 7500 Fast instruments
+    #     dir = filedialog.askdirectory()
+    #     files_xls2 = [f for f in os.listdir(dir) if f.endswith('xls')]
+    #
+    #     fulldf = pd.DataFrame()
+    #     for x in files_xls2:
+    #         df_orig = pd.read_excel(x, sheet_name="Results", header=None)
+    #         for row in range(df_orig.shape[0]):
+    #             for col in range(df_orig.shape[1]):
+    #                 if df_orig.iat[row, col] == "Well":
+    #                     row_start = row
+    #                     break
+    #
+    #         # Subset raw file for only portion below "Well" and remainder of header
+    #         df = df_orig[row_start:]
+    #
+    #         # Take all but column names
+    #         df = df[1:]
+    #
+    #         # This will not work because there will not be column names at this point.
+    #         # Convert 'undetermined' to 'NaN' for 'CT' column
+    #         # df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+    #
+    #         fulldf = fulldf.append(df)
+    #
+    #     fulldf.reset_index()
+
+    # TODO: ADD dirplot - Plot all results (monthly and weekly)
+    def dirplot(self):
+        messagebox.showinfo("Select directory", "Select 'resulting_completed' directory")
         dir = filedialog.askdirectory()
         files_csv = [f for f in os.listdir(dir) if f.endswith('csv')]
 
@@ -904,6 +934,9 @@ class COV:
         cr2 = compiled_results[~compiled_results['Sample_ID'].str.contains('|'.join(exclude_list), case=False)].copy(
             deep=True)
 
+        # Since all inconclusive results are retested and determined to be pos/neg, keep only the most recent result.
+        cr2 = cr2.drop_duplicates(subset="Sample_ID", keep='last')
+
         cr2['Month'], cr2['Day'], cr2['Year'], cr2['Residual'] = cr2['Filename'].str.split('_', 3).str
 
         cr2['datetime'] = pd.to_datetime(cr2[['Month', 'Day', 'Year']])
@@ -920,11 +953,11 @@ class COV:
         cols = ['positive', 'negative', 'inconclusive']
         cr2['results'] = cr2[cols].apply(lambda x: ''.join(x.dropna()), axis=1)
 
-        test = cr2.groupby(cr2['datetime'].dt.week)['results'].value_counts().unstack(1)
-        newdf = test.add_suffix("_results").reset_index().fillna(0)
+        week_group = cr2.groupby(cr2['datetime'].dt.week)['results'].value_counts().unstack(1)
+        week_df = week_group.add_suffix("_results").reset_index().fillna(0)
 
         new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
-        newdf[new_cols] = newdf[new_cols].applymap(np.int64)
+        week_df[new_cols] = weed_df[new_cols].applymap(np.int64)
 
         # Prep outpath and output file name
         timestr = time.strftime('%m_%d_%Y')
@@ -938,10 +971,10 @@ class COV:
         mypath = os.path.abspath(os.path.dirname(dir))
         newpath = os.path.join(mypath, './statistics_and_plots')
         normpath = os.path.normpath(newpath)
-        new_base = timestr + '_AIHG_2019-nCoVRT-PCR_weekly_results.png'
+        new_base_week = timestr + '_AIHG_2019-nCoVRT-PCR_weekly_results.png'
 
         # Plotting
-        dates = np.arange(len(newdf))
+        dates = np.arange(len(week_df))
         width = 0.3
         opacity = 0.4
 
@@ -949,61 +982,91 @@ class COV:
 
         fig, ax = plt.subplots()
 
-        ax.barh(dates, newdf['negative_results'], width, alpha=opacity, color="blue", label="Negative")
-        ax.barh(dates + width, newdf['positive_results'], width, alpha=opacity, color="red", label="Positive")
-        ax.barh(dates + (width * 2), newdf['inconclusive_results'], width, alpha=opacity, color="green",
+        ax.barh(dates, week_df['negative_results'], width, alpha=opacity, color="blue", label="Negative")
+        ax.barh(dates + width, week_df['positive_results'], width, alpha=opacity, color="red", label="Positive")
+        ax.barh(dates + (width * 2), week_df['inconclusive_results'], width, alpha=opacity, color="green",
                 label="Inconclusive")
-        ax.set(yticks=dates + width, yticklabels=newdf['datetime'], ylim=[2 * width - 1, len(newdf)])
+        ax.set(yticks=dates + width, yticklabels=week_df['datetime'], ylim=[2 * width - 1, len(week_df) + 2])
         ax.legend()
         ax.set_ylabel("2020 Week Number")
         ax.set_xlabel("Count")
         ax.set_title("AIHG 2019-nCoV RT-PCR Weekly Results")
 
-        for i, v in enumerate(newdf['negative_results']):
+        for i, v in enumerate(week_df['negative_results']):
             ax.text(v + 4, i, str(v), color="blue", va="center")
 
-        for o, b in enumerate(newdf['positive_results']):
+        for o, b in enumerate(week_df['positive_results']):
             ax.text(b + 4, o + 0.3, str(b), color="red", va="center")
 
-        for p, n in enumerate(newdf['inconclusive_results']):
+        for p, n in enumerate(week_df['inconclusive_results']):
             ax.text(n + 4, p + 0.6, str(n), color="green", va="center")
 
         fig.tight_layout()
 
         fig.subplots_adjust(right=1.75)
 
-        fig.savefig(normpath + '\\' + new_base, dpi=300, bbox_inches="tight")
+        fig.savefig(normpath + '\\' + new_base_week, dpi=300, bbox_inches="tight")
+
+        # Clear current figure prior to plotting monthly results
+        plt.clf()
+
+        month_group = cr2.groupby(cr2['datetime'].dt.month)['results'].value_counts().unstack(1)
+        month_df = month_group.add_suffix("_results").reset_index().fillna(0)
+
+        new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
+        month_df[new_cols] = month_df[new_cols].applymap(np.int64)
+
+        # Prep outpath and output file name
+        timestr = time.strftime('%m_%d_%Y')
+
+        # This portion works for Unix systems - see section below for Windows.
+        outname = os.path.split(dir)
+        outname1 = outname[0]
+        outfilename = outname[1]
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(dir))
+        newpath = os.path.join(mypath, './statistics_and_plots')
+        normpath = os.path.normpath(newpath)
+        new_base_month = timestr + '_AIHG_2019-nCoVRT-PCR_monthly_results.png'
+
+        # Plotting
+        dates = np.arange(len(month_df))
+        width = 0.3
+        opacity = 0.4
+
+        plt.figure(figsize=(10, 12))
+
+        fig, ax = plt.subplots()
+
+        ax.barh(dates, month_df['negative_results'], width, alpha=opacity, color="blue", label="Negative")
+        ax.barh(dates + width, month_df['positive_results'], width, alpha=opacity, color="red", label="Positive")
+        ax.barh(dates + (width * 2), month_df['inconclusive_results'], width, alpha=opacity, color="green",
+                label="Inconclusive")
+        ax.set(yticks=dates + width, yticklabels=newdf['datetime'], ylim=[2 * width - 1, len(month_df) + 2])
+        ax.legend()
+        ax.set_ylabel("2020 Month Number")
+        ax.set_xlabel("Count")
+        ax.set_title("AIHG 2019-nCoV RT-PCR Monthly Results")
+
+        for i, v in enumerate(month_df['negative_results']):
+            ax.text(v + 4, i, str(v), color="blue", va="center")
+
+        for o, b in enumerate(month_df['positive_results']):
+            ax.text(b + 4, o + 0.3, str(b), color="red", va="center")
+
+        for p, n in enumerate(month_df['inconclusive_results']):
+            ax.text(n + 4, p + 0.6, str(n), color="green", va="center")
+
+        fig.tight_layout()
+
+        fig.subplots_adjust(right=1.75)
+
+        fig.savefig(normpath + '\\' + new_base_month, dpi=300, bbox_inches="tight")
 
         messagebox.showinfo("Complete", "Plotting Successful!")
 
-    # This section works off of xls output from QuantStudio, Viia, and 7500 Fast instruments
-    #     dir = filedialog.askdirectory()
-    #     files_xls2 = [f for f in os.listdir(dir) if f.endswith('xls')]
-    #
-    #     fulldf = pd.DataFrame()
-    #     for x in files_xls2:
-    #         df_orig = pd.read_excel(x, sheet_name="Results", header=None)
-    #         for row in range(df_orig.shape[0]):
-    #             for col in range(df_orig.shape[1]):
-    #                 if df_orig.iat[row, col] == "Well":
-    #                     row_start = row
-    #                     break
-    #
-    #         # Subset raw file for only portion below "Well" and remainder of header
-    #         df = df_orig[row_start:]
-    #
-    #         # Take all but column names
-    #         df = df[1:]
-    #
-    #         # This will not work because there will not be column names at this point.
-    #         # Convert 'undetermined' to 'NaN' for 'CT' column
-    #         # df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
-    #
-    #         fulldf = fulldf.append(df)
-    #
-    #     fulldf.reset_index()
-
-        # TODO: ADD dirstatsresultsmonth - Montly results
+        # TODO: ADD dirstatsresultsmonth - Monthly results
     def dirstatsresultsmonth(self):
         dir = filedialog.askdirectory()
         files_csv = [f for f in os.listdir(dir) if f.endswith('csv')]
@@ -1055,61 +1118,7 @@ class COV:
         cols = ['positive', 'negative', 'inconclusive']
         cr2['results'] = cr2[cols].apply(lambda x: ''.join(x.dropna()), axis=1)
 
-        test = cr2.groupby(cr2['datetime'].dt.month)['results'].value_counts().unstack(1)
-        newdf = test.add_suffix("_results").reset_index().fillna(0)
 
-        new_cols = ['positive_results', 'negative_results', 'inconclusive_results']
-        newdf[new_cols] = newdf[new_cols].applymap(np.int64)
-
-        # Prep outpath and output file name
-        timestr = time.strftime('%m_%d_%Y')
-
-        # This portion works for Unix systems - see section below for Windows.
-        outname = os.path.split(dir)
-        outname1 = outname[0]
-        outfilename = outname[1]
-
-        # For Windows-based file paths
-        mypath = os.path.abspath(os.path.dirname(dir))
-        newpath = os.path.join(mypath, './statistics_and_plots')
-        normpath = os.path.normpath(newpath)
-        new_base = timestr + '_AIHG_2019-nCoVRT-PCR_monthly_results.png'
-
-        # Plotting
-        dates = np.arange(len(newdf))
-        width = 0.3
-        opacity = 0.4
-
-        plt.figure(figsize=(10, 12))
-
-        fig, ax = plt.subplots()
-
-        ax.barh(dates, newdf['negative_results'], width, alpha=opacity, color="blue", label="Negative")
-        ax.barh(dates + width, newdf['positive_results'], width, alpha=opacity, color="red", label="Positive")
-        ax.barh(dates + (width * 2), newdf['inconclusive_results'], width, alpha=opacity, color="green",
-                    label="Inconclusive")
-        ax.set(yticks=dates + width, yticklabels=newdf['datetime'], ylim=[2 * width - 1, len(newdf)])
-        ax.legend()
-        ax.set_ylabel("2020 Month Number")
-        ax.set_xlabel("Count")
-        ax.set_title("AIHG 2019-nCoV RT-PCR Monthly Results")
-
-        for i, v in enumerate(newdf['negative_results']):
-            ax.text(v + 4, i, str(v), color="blue", va="center")
-
-        for o, b in enumerate(newdf['positive_results']):
-            ax.text(b + 4, o + 0.3, str(b), color="red", va="center")
-
-        for p, n in enumerate(newdf['inconclusive_results']):
-            ax.text(n + 4, p + 0.6, str(n), color="green", va="center")
-
-        fig.tight_layout()
-
-        fig.subplots_adjust(right=1.75)
-
-        fig.savefig(normpath + '\\' + new_base, dpi=300, bbox_inches="tight")
-
-        messagebox.showinfo("Complete", "Plotting Successful!")
 
 
     # Manual antibodyprocess
