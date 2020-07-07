@@ -67,7 +67,7 @@ class COV:
         #                               width=40)
         # self.convert_button5.pack(pady=10)
 
-        self.dirplotbutton = Button(master, text='Plot results', command=self.dirplot, width=50)
+        self.dirplotbutton = Button(master, text='Plot results', command=self.dirplot, width=30)
         self.dirplotbutton.pack(pady=10)
 
         # self.dirstatsbutton_week = Button(master, text='Weekly results - Select "resulting_completed" directory',
@@ -588,6 +588,10 @@ class COV:
             ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
              'RP_Result', 'Result_Interpretation', 'controls_result']]
 
+        newdf['N1_CT'].fillna('Undetermined', inplace=True)
+        newdf['N2_CT'].fillna('Undetermined', inplace=True)
+        newdf['RP_CT'].fillna('Undetermined', inplace=True)
+
         # Prepare the outpath for the processed data using a timestamp
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
 
@@ -776,13 +780,13 @@ class COV:
         outfilename = outname[1]
 
         # Prepare the outpath for the processed data using a timestamp
-        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+        meditech_timestr = time.strftime('%Y%m%d%H%M')
 
         # For Windows-based file paths
         mypath = os.path.abspath(os.path.dirname(path))
         newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
         normpath = os.path.normpath(newpath)
-        new_base = timestr + '_covid_results_Meditech.csv'
+        new_base = meditech_timestr + '_COVID19S.csv'
         merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
         info_orig = pd.read_excel(path, sheet_name="Results", header=None)
@@ -914,12 +918,17 @@ class COV:
 
         compiled_results = pd.concat(file_list, axis=0, ignore_index=True)
 
+        # Remove rows full of NA's
         compiled_results.dropna(axis=1, how='all', inplace=True)
 
         compiled_results.columns = ['Sample_ID', 'Result_N1', 'Result_N2', 'Result_RP', 'Result_Interpretation',
                                     'Report', 'Actions', 'Filename']
 
+        # Drop missings if 'Sample_ID' column is blank
         compiled_results.dropna(axis=0, subset=['Sample_ID'], inplace=True)
+
+        # drop missings if 'Result_Interpretation' column is blank
+        compiled_results.dropna(axis=0, subset=['Result_Interpretation'], inplace=True)
 
         exclude_list = ['LOW1', 'LOW2', 'LOW3', 'MID1', 'MID2', 'MID3', 'Mod-1_No_90', 'Mod-2_No_90', 'Mod-3_No_90',
                         'Low-1_No_90', 'Low-2_No_90', 'Low-3_No_90', 'Low_1', 'Low_2', 'Low_3', 'Mod_1', 'Mod_2',
@@ -929,19 +938,27 @@ class COV:
                         'Mod-5_QS', 'Mod-6_QS', 'Low-1_QS', 'Low-2_QS', 'Low-3_QS', 'Mod-1_QS', 'Mod-2_QS', 'Mod-3_QS',
                         'H2O1', 'H2O2', 'H2O3', '0.16_A_Validation', '0.16_B_Validation', '0.8_A_Validation',
                         '0.8_B_Validation', '032420-5-M', '032420-8-M', '_NEG_', '20_A_Validation', '20_B_Validation',
-                        '40_state3', '4_A_Validation', '4_B_Validation']
+                        '40_state3', '4_A_Validation', '4_B_Validation', 'H2O_1', 'H2O_2', 'H2O_3']
 
-        cr2 = compiled_results[~compiled_results['Sample_ID'].str.contains('|'.join(exclude_list), case=False)].copy(
+        cr1 = compiled_results[~compiled_results['Sample_ID'].str.contains('|'.join(exclude_list), case=False)].copy(
             deep=True)
 
-        # Since all inconclusive results are retested and determined to be pos/neg, keep only the most recent result.
-        cr2 = cr2.drop_duplicates(subset="Sample_ID", keep='last')
+        # Still some rogue values due to comments added to results files
+        include_list = ['2019-nCoV not detected', '2019-nCoV detected', 'Inconclusive Result', 'Invalid Result']
 
-        cr2['Month'], cr2['Day'], cr2['Year'], cr2['Residual'] = cr2['Filename'].str.split('_', 3).str
+        cr2 = cr1[cr1['Result_Interpretation'].str.contains('|'.join(include_list), case=False)].copy(deep=True)
+
+        # Split filename into month, day, and year columns
+        cr2['Month'], cr2['Day'], cr2['Year'], cr2['Hour'], cr2['Minutes'], cr2['Seconds'], cr2['Residual'] = \
+            cr2['Filename'].str.split('_', 6).str
 
         cr2['datetime'] = pd.to_datetime(cr2[['Month', 'Day', 'Year']])
 
-        cr2 = cr2.sort_values('datetime', ascending=True)
+        # Sort by ascending datetime in order to keep most recent result only
+        cr2 = cr2.sort_values(by=['Month', 'Day', 'Year', 'Hour', 'Minute'], ascending=True)
+
+        # Since all inconclusive results are retested and determined to be pos/neg, keep only the most recent result.
+        cr2 = cr2.drop_duplicates(subset="Sample_ID", keep='last')
 
         cr2['positive'] = None
         cr2.loc[(cr2['Result_Interpretation'] == '2019-nCoV detected'), 'positive'] = 'positive'
@@ -986,7 +1003,7 @@ class COV:
         ax.barh(dates + width, week_df['positive_results'], width, alpha=opacity, color="red", label="Positive")
         ax.barh(dates + (width * 2), week_df['inconclusive_results'], width, alpha=opacity, color="green",
                 label="Inconclusive")
-        ax.set(yticks=dates + width, yticklabels=week_df['datetime'], ylim=[2 * width - 1, len(week_df) + 2])
+        ax.set(yticks=dates + width, yticklabels=week_df['datetime'], ylim=[2 * width - 1, len(week_df)])
         ax.legend()
         ax.set_ylabel("2020 Week Number")
         ax.set_xlabel("Count")
@@ -1043,7 +1060,7 @@ class COV:
         ax.barh(dates + width, month_df['positive_results'], width, alpha=opacity, color="red", label="Positive")
         ax.barh(dates + (width * 2), month_df['inconclusive_results'], width, alpha=opacity, color="green",
                 label="Inconclusive")
-        ax.set(yticks=dates + width, yticklabels=month_df['datetime'], ylim=[2 * width - 1, len(month_df) + 2])
+        ax.set(yticks=dates + width, yticklabels=month_df['datetime'], ylim=[2 * width - 1, len(month_df)])
         ax.legend()
         ax.set_ylabel("2020 Month Number")
         ax.set_xlabel("Count")
