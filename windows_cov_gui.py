@@ -588,9 +588,9 @@ class COV:
             ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
              'RP_Result', 'Result_Interpretation', 'controls_result']]
 
-        newdf['N1_CT'].fillna('Undetermined', inplace=True)
-        newdf['N2_CT'].fillna('Undetermined', inplace=True)
-        newdf['RP_CT'].fillna('Undetermined', inplace=True)
+        new_df['N1_CT'].fillna('Undetermined', inplace=True)
+        new_df['N2_CT'].fillna('Undetermined', inplace=True)
+        new_df['RP_CT'].fillna('Undetermined', inplace=True)
 
         # Prepare the outpath for the processed data using a timestamp
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
@@ -804,7 +804,7 @@ class COV:
         # For Windows-based file paths
         newlogpath = os.path.join(mypath, '../../processed/logs')
         normlogpath = os.path.normpath(newlogpath)
-        log_base = timestr + '_Meditech_covid_output.log'
+        log_base = meditech_timestr + '_Meditech_covid_output.log'
         log_filename = normlogpath + '\\' + log_base
 
         # Define log file parameters
