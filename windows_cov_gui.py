@@ -592,15 +592,33 @@ class COV:
         new_df['N2_CT'].fillna('Undetermined', inplace=True)
         new_df['RP_CT'].fillna('Undetermined', inplace=True)
 
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+        paneldf = pd.read_csv(path2, header=0)
+
+        # Merge results with panel id file
+        merge = pd.merge(new_df, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+
+        merge_clean = merge[["PanelID", "Sample_Name", "N1_CT", "N1_NOAMP", "N1_Result", "N2_CT", "N2_NOAMP",
+                             "N2_Result", "RP_CT", "RP_NOAMP", "RP_Result", "Result_Interpretation", "controls_result"]]
+
         # Prepare the outpath for the processed data using a timestamp
         timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
+        # Break file path/name to extract barcode from file name
+        outname = os.path.split(path)
+        dir_path = outname[0]
+        plate_barcode = outname[1]
 
         # For Windows-based file paths
         mypath = os.path.abspath(os.path.dirname(path))
         newpath = os.path.join(mypath, '../../processed/output_for_LIMS')
         normpath = os.path.normpath(newpath)
-        new_base = timestr + '_covid_results.csv'
-        new_df.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
+        # Replace new_base with plate_barcode
+        # new_base = timestr + '_covid_results.csv'
+
+        merge_clean.to_csv(normpath + '\\' + plate_barcode + '.csv', sep=",", index=False)
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
