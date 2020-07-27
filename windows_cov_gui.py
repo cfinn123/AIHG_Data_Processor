@@ -101,7 +101,13 @@ class COV:
                     "Excel file will be created in the same directory as the specified input file.",
                     "3. For analysis of ELISA, press 'Select ELISA file (EAGLE setup)'. "
                     "Proceed to navigate to the appropriate ELISA results file.",
-                    "4. For statistics and plots, please follow the on screen instructions."]
+                    "4. For statistics and plots, please follow the on screen instructions.",
+                    "5. For LIMS friendly output navigate to the file of interest in the file browser. The results "
+                    "will appear in the results/processed/output_for_LIMS directory. A log file will be made in the "
+                    "logs directory.",
+                    "6. For Meditech friendly output navigate to the file of interest in the file browser. The results "
+                    "will appear in the results/processed/output_for_Meditech directory. A log file will be made in the "
+                    "logs directory."]
         messagebox.showinfo("Help", "\n\n".join(messages))
 
     def dataprocess(self):
@@ -869,6 +875,9 @@ class COV:
         current = current[['Study ID', 'Current Label', 'Account', 'Subject ID', 'Med Rec', 'Date Collected',
                            'Date Received', 'Gender', 'DOB', 'Date of Birth', 'First Name', 'First', 'Last Name',
                            'Last', 'Specimen']]
+
+        # Sort by Specimen ID
+        current.sort_values(by="Specimen", inplace=True)
 
         # Get path as string and create new base for file name
         outnamebsi = os.path.split(pathbsi)
