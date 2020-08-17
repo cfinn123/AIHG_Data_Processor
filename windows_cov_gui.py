@@ -19,6 +19,11 @@ Date of addition: May 13, 2020
 4. Added a button for plotting cumulative positive, negative, inconclusive results for all testing done at AIHG.
 The button works at the level of the "resulting_completed" directory within the RT_PCR/results/processed parent
 directory.
+
+Date of addition: August 17, 2020
+5. Added button to replace the 'Meditech to BSI' R script that was originally created by Matthijs Van Der Zee.
+There were two components to the script, one for extracting only the current label, the other for full conversion of
+the Meditech report to a BSI-friendly upload file.
 """
 
 from tkinter import *
@@ -43,24 +48,29 @@ panel = Label(root, image=img)
 panel.pack(side="bottom", fill="both", expand="yes")
 
 
-class COV:
+class AIHGdataprocessor:
     def __init__(self, master):
         master.minsize(width=200, height=100)
         self.master = master
-        master.title("COVID-19 Data Processor")
+        master.title("AIHG Data Processor")
 
         # Button for analyzing RT_PCR data
         self.rtpcr_button = Button(master, text='Select RT-PCR file to analyze', command=self.dataprocess, width=30)
         self.rtpcr_button.pack(pady=10)
 
-        # Button for converting Meditch to BSI (COVID formatting)
-        self.bsiconvert_button = Button(master, text='Select file to convert for BSI',
+        # Button for converting Meditch to BSI (PGx formatting)
+        self.bsiconvert_button = Button(master, text='Select Meditech file to convert for BSI',
                                         command=self.bsiprocess, width=30)
         self.bsiconvert_button.pack(pady=10)
 
+        # Button for converting Meditch to BSI (COVID formatting)
+        self.covidbsiconvert_button = Button(master, text='COVID - Select file to convert for BSI',
+                                        command=self.covidbsiprocess, width=30)
+        self.covidbsiconvert_button.pack(pady=10)
+
         # Button for manual antibody testing
-        self.eagle_elisa_button = Button(master, text="Select ELISA file (EAGLE setup)",
-                                          command=self.antibodyprocess, width=30)
+        self.eagle_elisa_button = Button(master, text="Select ELISA file (EAGLE setup)", command=self.antibodyprocess,
+                                         width=30)
         self.eagle_elisa_button.pack(pady=10)
 
         # self.convert_button5 = Button(master, text='Generate stats for selected files', command=self.statsprocess,
@@ -96,18 +106,22 @@ class COV:
         messages = ["1. For analysis of RT-PCR data, press 'Select RT-PCR file to analyze' "
                     "and navigate to the file of interest in the file browser. The results and "
                     "associated log files will be generated.",
-                    "2. For file conversion for upload into BSI, press 'Select file to convert for BSI' "
-                    "and navigate to the output file of the 'Meditech to BSI' R-script. The COVID-friendly BSI "
-                    "Excel file will be created in the same directory as the specified input file.",
-                    "3. For analysis of ELISA, press 'Select ELISA file (EAGLE setup)'. "
+                    "2. For Meditech file conversion for upload into BSI, press 'Select Meditech file to convert for "
+                    "BSI' and select the Meditech file. The BSI-friendly text file will be created in the same "
+                    "directory as the specified input file.",
+                    "3. For COVID-friendly file conversion for upload into BSI, press 'COVID - Select file to convert "
+                    "for BSI' and select output file from Meditech to BSI conversion. The COVID-friendly Excel file "
+                    "will be created in the same directory as the specified input file.",
+                    "4. For analysis of ELISA, press 'Select ELISA file (EAGLE setup)'. "
                     "Proceed to navigate to the appropriate ELISA results file.",
-                    "4. For statistics and plots, please follow the on screen instructions.",
-                    "5. For LIMS friendly output navigate to the file of interest in the file browser. The results "
+                    "5. For statistics and plots, please follow the on screen instructions.",
+                    "6. For LIMS friendly output navigate to the file of interest in the file browser. The results "
                     "will appear in the results/processed/output_for_LIMS directory. A log file will be made in the "
                     "logs directory.",
-                    "6. For Meditech friendly output navigate to the file of interest in the file browser. The results "
-                    "will appear in the results/processed/output_for_Meditech directory. A log file will be made in the "
-                    "logs directory."]
+                    "7. For Meditech friendly output navigate to the file of interest in the file browser. The results "
+                    "will appear in the results/processed/output_for_Meditech directory. A log file will be made in "
+                    "the logs directory."]
+
         messagebox.showinfo("Help", "\n\n".join(messages))
 
     def dataprocess(self):
@@ -461,7 +475,114 @@ class COV:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
-## Make LIMS-friendly output
+# Replaces Meditech to BSI R script that converts Meditech report to BSI-friendly upload file (PGx formatting)
+    def dataprocess(self):
+        filepath = filedialog.askopenfilename()
+
+        # need to obtain 'Study ID', 'Current Label', 'Account', 'Subject ID', 'Med Rec', 'Date Collected',
+        # 'Date Received', 'Gender', 'DOB', 'First Name', 'Last Name', 'Specimen'
+        out_list = []
+
+        with open(filepath) as fp:
+            for cnt, line in enumerate(fp):
+                # print("Line {}: {}".format(cnt, line))
+                if 'ACCT' in line:
+                    patient_dict = {}
+                    # split the file line by the ':' character, should result in a list of 5 elements
+                    acct_line = line.split(':')
+
+                    # get the name information
+                    list_split = acct_line[1].split(' ')
+                    lastFirst = list_split[1]
+                    middle = list_split[2]
+                    last, first = lastFirst.split(',')
+                    # this will fix the nickname issue, will append nickname to the middle name with a space in the
+                    # middle
+                    if list_split[3] != '':
+                        nick_name = list_split[3]
+                        middle_base = middle.strip(' ')
+                        middle_out = middle_base + ' ' + nick_name
+                        patient_dict['middle'] = middle_out
+                    else:
+                        patient_dict['middle'] = middle.strip(' ')
+
+                    patient_dict['first'] = first.strip(' ')
+                    patient_dict['Last Name'] = last.strip(' ')
+
+                    # get the account/current label information
+                    acctLine = acct_line[2]
+                    acctNum = acctLine.split(' ')[1]
+                    patient_dict['Account'] = acctNum.strip(' ')
+                    patient_dict['Current Label'] = acctNum.strip(' ')
+
+                    # get the subject id/med rec info
+                    medRecLine = acct_line[4]
+                    medRec = medRecLine.strip('\n')
+                    patient_dict['Subject ID'] = medRec.strip(' ')
+                    patient_dict['Med Rec'] = medRec.strip(' ')
+
+                elif 'AGE/SX' in line:
+                    ageLine = line.split(':')
+                    ageSex = ageLine[1].split(' ')[1]
+                    sex = ageSex.split('/')[1]
+                    patient_dict['Gender'] = sex.strip(' ')
+
+                elif 'DOB' in line:
+                    dobLine = line.split(':')
+                    patient_dict['DOB'] = dobLine[2].split(' ')[4]
+
+                elif 'SPEC' in line:
+                    specLine = line.split(':')
+                    spec1 = specLine[1]
+                    spec1 = spec1.strip(' ')
+                    spec2 = specLine[2].split(' ')[0]
+                    spec2 = spec2.strip(' ')
+                    patient_dict['Specimen'] = spec1 + ':' + spec2
+                    # get the collection date
+                    dob = specLine[3].split(' ')[1]
+                    patient_dict['Date Collected'] = dob.strip(' ')
+
+                elif 'RECD' in line:
+                    recdLine = line.split(':')[1]
+                    patient_dict['Date Received'] = recdLine.split(' ')[1]
+
+                    out_list.append(patient_dict)
+
+                else:
+                    pass
+
+        # make a dataframe from the output and clean it up a bit
+        df_patient = pd.DataFrame(out_list)
+
+        df_patient['FirstMiddle'] = df_patient['first'] + ' ' + df_patient['middle']
+        df_patient = df_patient.drop(['first', 'middle'], axis=1)
+        df_patient = df_patient.rename(columns={'FirstMiddle': 'First Name'})
+
+        df_patient['DOB'] = pd.to_datetime(df_patient['DOB'])
+
+        df_patient['Date Collected'] = pd.to_datetime(df_patient['Date Collected'])
+        df_patient['Date Collected'] = df_patient['Date Collected'].dt.strftime('%m/%d/%Y %H:%M')
+
+        df_patient['Date Received'] = pd.to_datetime(df_patient['Date Received'])
+        df_patient['Date Received'] = df_patient['Date Received'].dt.strftime('%m/%d/%Y %H:%M')
+
+        df_patient['Study ID'] = 'PGX'
+
+        dfOut = df_patient[['Study ID', 'Current Label', 'Account', 'Subject ID', 'Med Rec', 'Date Collected',
+                            'Date Received', 'Gender', 'DOB', 'First Name', 'Last Name', 'Specimen']]
+
+        outname = os.path.split(filepath)
+        filename = outname[1]
+        filenamenoext = filename[:-4]
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(filepath))
+
+        dfOut.to_csv(mypath + '\\' + filenamenoext + '_BSIconverted.txt', sep="\t", index=False)
+
+        messagebox.showinfo("Complete", "Data Processing Complete!")
+
+    ## Make LIMS-friendly output
     def limsprocess(self):
         # Ingest input file
         # ask the user for an input read in the file selected by the user
@@ -857,8 +978,8 @@ class COV:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
-## Convert Meditech to BSI file to BSI-friendly version
-    def bsiprocess(self):
+## Convert Meditech to BSI file to BSI-friendly version (COVID formatting)
+    def covidbsiprocess(self):
         pathbsi = filedialog.askopenfilename()
         # read in file - output from Meditech to BSI script
         current = pd.read_csv(pathbsi, sep="\t", header=0)
@@ -1314,6 +1435,6 @@ class COV:
         messagebox.showinfo("Complete", "ELISA Data Processing Complete!")
 
 
-my_gui = COV(root)
+my_gui = AIHGdataprocessor(root)
 root.update()
 root.mainloop()
