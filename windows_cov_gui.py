@@ -476,7 +476,7 @@ class AIHGdataprocessor:
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
 # Replaces Meditech to BSI R script that converts Meditech report to BSI-friendly upload file (PGx formatting)
-    def dataprocess(self):
+    def bsiprocess(self):
         filepath = filedialog.askopenfilename()
 
         # need to obtain 'Study ID', 'Current Label', 'Account', 'Subject ID', 'Med Rec', 'Date Collected',
