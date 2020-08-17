@@ -559,6 +559,7 @@ class AIHGdataprocessor:
         df_patient = df_patient.rename(columns={'FirstMiddle': 'First Name'})
 
         df_patient['DOB'] = pd.to_datetime(df_patient['DOB'])
+        df_patient['DOB'] = df_patient['DOB'].dt.strftime('%m/%d/%Y')
 
         df_patient['Date Collected'] = pd.to_datetime(df_patient['Date Collected'])
         df_patient['Date Collected'] = df_patient['Date Collected'].dt.strftime('%m/%d/%Y %H:%M')
