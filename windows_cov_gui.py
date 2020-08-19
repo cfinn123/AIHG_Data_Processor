@@ -1098,7 +1098,7 @@ class AIHGdataprocessor:
         cr2 = cr1[cr1['Result_Interpretation'].str.contains('|'.join(include_list), case=False)].copy(deep=True)
 
         # Split filename into month, day, and year columns
-        cr2['Month'], cr2['Day'], cr2['Year'], cr2['Hour'], cr2['Minutes'], cr2['Seconds'], cr2['Residual'] = \
+        cr2['Month'], cr2['Day'], cr2['Year'], cr2['Hour'], cr2['Minute'], cr2['Seconds'], cr2['Residual'] = \
             cr2['Filename'].str.split('_', 6).str
 
         cr2['datetime'] = pd.to_datetime(cr2[['Month', 'Day', 'Year']])
