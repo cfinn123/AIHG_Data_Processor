@@ -98,6 +98,11 @@ class AIHGdataprocessor:
                                       command=self.meditechprocess, width=40)
         self.meditech_button.pack(pady=10)
 
+        # Button for multiplex assay
+        self.multiplex_button = Button(master, text="Multiplex - Select RT-PCR file to analyze",
+                                      command=self.multiplexprocess, width=40)
+        self.multiplex_button.pack(pady=10)
+
         # Help button
         self.info_button = Button(master, text="Help", command=self.info, width=10)
         self.info_button.pack(pady=10)
@@ -750,9 +755,238 @@ class AIHGdataprocessor:
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
-
-# Make Meditech-friendly output including panel ID.
+        # Make Meditech-friendly output including panel ID.
     def meditechprocess(self):
+            # Ingest input file
+            # ask the user for an input read in the file selected by the user
+            messagebox.showinfo("Select results file", "Select RT-PCR file to analyze")
+            path = filedialog.askopenfilename()
+
+            # To accommodate either QuantStudio or ViiA7
+            df_orig = pd.read_excel(path, sheet_name="Results", header=None)
+            for row in range(df_orig.shape[0]):
+                for col in range(df_orig.shape[1]):
+                    if df_orig.iat[row, col] == "Well":
+                        row_start = row
+                        break
+
+            # Subset raw file for only portion below "Well" and remainder of header
+            df = df_orig[row_start:]
+
+            # Header exists in row 1, make new header
+            new_header = df.iloc[0]
+            df = df[1:]
+            df.columns = new_header
+
+            # Adding a new line to handle the 'Cт' present in the header of the output file from the 7500 instrument
+            df.columns = df.columns.str.replace('Cт', 'CT')
+
+            # Convert 'undetermined' to 'NaN' for 'CT' column
+            df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+
+            # TODO: DEFINE CT VALUE HERE
+            ct_value = 40.00
+
+            # New code
+            pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT", "NOAMP"])
+            new_df = pd.DataFrame(pt.to_records()).rename(columns={'Target Name': 'index'})
+
+            newcols = {"Sample Name": "Sample_Name", "('CT', 'N1')": "N1_CT", "('CT', 'N2')": "N2_CT",
+                       "('CT', 'RP')": "RP_CT", "('NOAMP', 'N1')": "N1_NOAMP", "('NOAMP', 'N2')": "N2_NOAMP",
+                       "('NOAMP', 'RP')": "RP_NOAMP"}
+            new_df.columns = new_df.columns.map(newcols)
+
+            new_df['N1_Result'] = np.nan
+            new_df.loc[(new_df['N1_CT'].isnull()), 'N1_Result'] = "negative"
+            new_df.loc[(new_df['N1_CT'].isnull()) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
+            new_df.loc[(new_df['N1_CT'] > ct_value), 'N1_Result'] = 'negative'
+            new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "Y"), 'N1_Result'] = 'negative'
+            new_df.loc[(new_df['N1_CT'] <= ct_value) & (new_df['N1_NOAMP'] == "N"), 'N1_Result'] = 'positive'
+
+            new_df['N2_Result'] = np.nan
+            new_df.loc[(new_df['N2_CT'].isnull()), 'N2_Result'] = "negative"
+            new_df.loc[(new_df['N2_CT'].isnull()) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
+            new_df.loc[(new_df['N2_CT'] > ct_value), 'N2_Result'] = 'negative'
+            new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
+            new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "N"), 'N2_Result'] = 'positive'
+
+            new_df['RP_Result'] = np.nan
+            new_df.loc[(new_df['RP_CT'].isnull()), 'RP_Result'] = "negative"
+            new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+            new_df.loc[(new_df['RP_CT'] > ct_value), 'RP_Result'] = 'negative'
+            new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+            new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "N"), 'RP_Result'] = 'positive'
+
+            # Assess controls
+            # Expected performance of controls
+            """
+            ControlType   ExternalControlName Monitors        2019nCoV_N1 2019nCOV_N2 RnaseP  ExpectedCt
+            Positive      nCoVPC              Rgt Failure     +           +           +       <40
+            Negative      NTC                 Contamination   -           -           -       None
+            Extraction    HSC                 Extraction      -           -           +       <40
+
+            If any of the above controls do not exhibit the expected performance as described, the assay may have been set
+            up and/or executed improperly, or reagent or equipment malfunction could have occurred. Invalidate the run and
+            re-test.
+            """
+            new_df['Neg_ctrl'] = np.nan
+            new_df.loc[((new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N1_CT'].isnull())) & (
+                    (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].isnull())) & (
+                               (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
+                           new_df['RP_CT'].isnull())), 'Neg_ctrl'] = "passed"
+            new_df.loc[((new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N1_CT'].notnull())) | (
+                    (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].notnull())) | (
+                               (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
+                           new_df['RP_CT'].notnull())), 'Neg_ctrl'] = "failed"
+
+            new_df['Ext_ctrl'] = np.nan
+            new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].isnull())) & (
+                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) & (
+                               (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
+                               new_df['RP_CT'] <= ct_value)), 'Ext_ctrl'] = "passed"
+            new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].notnull())) | (
+                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].notnull())) | (
+                               (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
+                               new_df['RP_CT'] > ct_value)), 'Ext_ctrl'] = "failed"
+
+            new_df['Pos_ctrl'] = np.nan
+            new_df.loc[((new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N1_CT'] <= ct_value)) & (
+                    (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] <= ct_value)) & (
+                               (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
+                               new_df['RP_CT'] <= ct_value)), 'Pos_ctrl'] = "passed"
+            new_df.loc[((new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N1_CT'] > ct_value)) | (
+                    (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] > ct_value)) | (
+                               (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
+                               new_df['RP_CT'] > ct_value)), 'Pos_ctrl'] = "failed"
+
+            control_cols = ['Neg_ctrl', 'Ext_ctrl', 'Pos_ctrl']
+            new_df['controls_result'] = new_df[control_cols].apply(lambda x: ''.join(x.dropna()), axis=1)
+
+            new_df['controls_result'] = new_df['controls_result'].replace(r'^\s*$', np.nan, regex=True)
+
+            new_df = new_df.sort_values(by='Sample_Name')
+
+            new_df = new_df.drop(['Neg_ctrl', 'Ext_ctrl', 'Pos_ctrl'], axis=1)
+
+            # 2019-nCoV rRT-PCR Diagnostic Panel Results Interpretation Guide (page 32 of reference file)
+            new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'positive') &
+                       (new_df['RP_Result'].notnull()),
+                       'Result_Interpretation'] = 'Positive'
+            new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'negative') &
+                       (new_df['RP_Result'].notnull()),
+                       'Result_Interpretation'] = 'Inconclusive'
+            new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'positive') &
+                       (new_df['RP_Result'].notnull()),
+                       'Result_Interpretation'] = 'Inconclusive'
+            new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') &
+                       (new_df['RP_Result'] == 'positive'),
+                       'Result_Interpretation'] = 'Not Detected'
+            new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') &
+                       (new_df['RP_Result'] == 'negative'),
+                       'Result_Interpretation'] = 'Invalid'
+
+            new_df = new_df[
+                ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
+                 'RP_Result', 'Result_Interpretation', 'controls_result']]
+
+            # Create a df of only samples (exclude controls)
+            controls_list = ['NTC', 'NEG', 'nCoVPC']
+
+            samples = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+                .copy(deep=True).sort_values(by=['Sample_Name'])
+
+            # Automatically read in panel data file that is updated every 4 hours
+            path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+            paneldf = pd.read_csv(path2, header=0)
+
+            # Merge results with panel id file
+            merge = pd.merge(samples, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+
+            # Add placeholder columns
+            merge["COVID19S.P"] = ""
+            merge["COVID19S.SRC"] = ""
+            merge["COVID19S.SYM"] = ""
+
+            # Select only columns of interest
+            merge = merge[
+                ['PanelID', 'Sample_Name', 'N1_Result', 'N2_Result', 'RP_Result', 'COVID19S.P', 'COVID19S.SRC',
+                 'COVID19S.SYM', 'Result_Interpretation']]
+
+            # Adjust column names
+            merge.rename(columns={'Sample_Name': 'AccountNumber', 'N1_Result': 'COVID.N1', 'N2_Result': 'COVID.N2',
+                                  'RP_Result': "COVID.RP", 'Result_Interpretation': 'COVID19S.T'}, inplace=True)
+
+            # Capitalize negative/positive in N1/N2/RP Results fields
+            merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
+            merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
+            merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
+
+            # controls df for log file
+            controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+                .copy(deep=True).sort_values(by=['Sample_Name'])
+
+            # For output
+            outname = os.path.split(path)
+            outname1 = outname[0]
+            outfilename = outname[1]
+
+            # Prepare the outpath for the processed data using a timestamp
+            meditech_timestr = time.strftime('%Y%m%d%H%M')
+
+            # For Windows-based file paths
+            mypath = os.path.abspath(os.path.dirname(path))
+            newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
+            normpath = os.path.normpath(newpath)
+            new_base = meditech_timestr + '_COVID19S.csv'
+            merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
+            info_orig = pd.read_excel(path, sheet_name="Results", header=None)
+            for row2 in range(info_orig.shape[0]):
+                for col2 in range(info_orig.shape[1]):
+                    if info_orig.iat[row2, col2] == "Experiment File Name":
+                        row_start_2 = row2
+                        break
+            # Subset raw file for only portion below "Well" and remainder of header
+            runinfo = info_orig[row_start_2:(row_start_2 + 9)]
+
+            # Reset index
+            runinfo.reset_index(drop=True)
+
+            # For Windows-based file paths
+            newlogpath = os.path.join(mypath, '../../processed/logs')
+            normlogpath = os.path.normpath(newlogpath)
+            log_base = meditech_timestr + '_Meditech_covid_output.log'
+            log_filename = normlogpath + '\\' + log_base
+
+            # Define log file parameters
+            logging.basicConfig(filename=log_filename, level=logging.DEBUG,
+                                format='%(asctime)s %(levelname)s %(message)s',
+                                datefmt='%H:%M:%S')
+            # Info for log file
+            logging.info(' Name of input file: ' + outfilename)
+            logging.info('\n')
+            logging.info('Run information: ')
+            logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
+            logging.info('\n')
+            logging.info(' Number of controls run: ' + str(len(controls_filtered['Sample_Name'].unique().tolist())))
+            logging.info(' Controls run: ' + str(controls_filtered['Sample_Name'].unique()))
+            logging.info('\n')
+            logging.info(' Results of controls: ')
+            logging.info('\n' + controls_filtered.to_string())
+            logging.warning('\t')
+            logging.warning(
+                str('If any of the above controls do not exhibit the expected performance as described, the assay may '
+                    'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
+                    'occurred. Invalidate the run and re-test.'))
+            logging.warning('\n')
+            logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
+            logging.info('Samples run: ')
+            logging.info(str(samples['Sample_Name'].unique()))
+
+            messagebox.showinfo("Complete", "Data Processing Complete!")
+
+# Multiplex analysis - NOTE CHANGES TO RP TARGET AND NO AMP FLAG FOR THIS TARGET.
+    def multiplexprocess(self):
         # Ingest input file
         # ask the user for an input read in the file selected by the user
         messagebox.showinfo("Select results file", "Select RT-PCR file to analyze")
@@ -806,12 +1040,14 @@ class AIHGdataprocessor:
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "N"), 'N2_Result'] = 'positive'
 
+        # CHANGES EXIST HERE
         new_df['RP_Result'] = np.nan
         new_df.loc[(new_df['RP_CT'].isnull()), 'RP_Result'] = "negative"
-        new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+        #        new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] > ct_value), 'RP_Result'] = 'negative'
-        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
-        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "N"), 'RP_Result'] = 'positive'
+        #        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+        # This portion removed before the comma  "& (new_df['RP_NOAMP'] == "N")"
+        new_df.loc[(new_df['RP_CT'] <= ct_value), 'RP_Result'] = 'positive'
 
         # Assess controls
         # Expected performance of controls
@@ -827,33 +1063,33 @@ class AIHGdataprocessor:
         """
         new_df['Neg_ctrl'] = np.nan
         new_df.loc[((new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N1_CT'].isnull())) & (
-                    (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].isnull())) & (
-                               (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
-                           new_df['RP_CT'].isnull())), 'Neg_ctrl'] = "passed"
+                (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].isnull())) & (
+                           (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
+                       new_df['RP_CT'].isnull())), 'Neg_ctrl'] = "passed"
         new_df.loc[((new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N1_CT'].notnull())) | (
-                    (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].notnull())) | (
-                               (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
-                           new_df['RP_CT'].notnull())), 'Neg_ctrl'] = "failed"
+                (new_df['Sample_Name'].str.contains("NTC", case=False)) & (new_df['N2_CT'].notnull())) | (
+                           (new_df['Sample_Name'].str.contains("NTC", case=False)) & (
+                       new_df['RP_CT'].notnull())), 'Neg_ctrl'] = "failed"
 
         new_df['Ext_ctrl'] = np.nan
         new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].isnull())) & (
-                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) & (
-                               (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
-                                   new_df['RP_CT'] <= ct_value)), 'Ext_ctrl'] = "passed"
+                (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].isnull())) & (
+                           (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
+                           new_df['RP_CT'] <= ct_value)), 'Ext_ctrl'] = "passed"
         new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N1_CT'].notnull())) | (
-                    (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].notnull())) | (
-                               (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
-                                   new_df['RP_CT'] > ct_value)), 'Ext_ctrl'] = "failed"
+                (new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['N2_CT'].notnull())) | (
+                           (new_df['Sample_Name'].str.contains("NEG", case=False)) & (
+                           new_df['RP_CT'] > ct_value)), 'Ext_ctrl'] = "failed"
 
         new_df['Pos_ctrl'] = np.nan
         new_df.loc[((new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N1_CT'] <= ct_value)) & (
-                    (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] <= ct_value)) & (
-                               (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
-                                   new_df['RP_CT'] <= ct_value)), 'Pos_ctrl'] = "passed"
+                (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] <= ct_value)) & (
+                           (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
+                           new_df['RP_CT'] <= ct_value)), 'Pos_ctrl'] = "passed"
         new_df.loc[((new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N1_CT'] > ct_value)) | (
-                    (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] > ct_value)) | (
-                               (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
-                                   new_df['RP_CT'] > ct_value)), 'Pos_ctrl'] = "failed"
+                (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (new_df['N2_CT'] > ct_value)) | (
+                           (new_df['Sample_Name'].str.contains("nCoVPC", case=False)) & (
+                           new_df['RP_CT'] > ct_value)), 'Pos_ctrl'] = "failed"
 
         control_cols = ['Neg_ctrl', 'Ext_ctrl', 'Pos_ctrl']
         new_df['controls_result'] = new_df[control_cols].apply(lambda x: ''.join(x.dropna()), axis=1)
@@ -867,19 +1103,19 @@ class AIHGdataprocessor:
         # 2019-nCoV rRT-PCR Diagnostic Panel Results Interpretation Guide (page 32 of reference file)
         new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'positive') &
                    (new_df['RP_Result'].notnull()),
-               'Result_Interpretation'] = 'Positive'
+                   'Result_Interpretation'] = 'Positive'
         new_df.loc[(new_df['N1_Result'] == 'positive') & (new_df['N2_Result'] == 'negative') &
                    (new_df['RP_Result'].notnull()),
-               'Result_Interpretation'] = 'Inconclusive'
+                   'Result_Interpretation'] = 'Inconclusive'
         new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'positive') &
                    (new_df['RP_Result'].notnull()),
-               'Result_Interpretation'] = 'Inconclusive'
+                   'Result_Interpretation'] = 'Inconclusive'
         new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') &
                    (new_df['RP_Result'] == 'positive'),
-               'Result_Interpretation'] = 'Not Detected'
+                   'Result_Interpretation'] = 'Not Detected'
         new_df.loc[(new_df['N1_Result'] == 'negative') & (new_df['N2_Result'] == 'negative') &
                    (new_df['RP_Result'] == 'negative'),
-               'Result_Interpretation'] = 'Invalid'
+                   'Result_Interpretation'] = 'Invalid'
 
         new_df = new_df[
             ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
@@ -908,8 +1144,8 @@ class AIHGdataprocessor:
                        'COVID19S.SYM', 'Result_Interpretation']]
 
         # Adjust column names
-        merge.rename(columns={'Sample_Name':'AccountNumber', 'N1_Result':'COVID.N1', 'N2_Result':'COVID.N2',
-                              'RP_Result':"COVID.RP", 'Result_Interpretation':'COVID19S.T'}, inplace=True)
+        merge.rename(columns={'Sample_Name': 'AccountNumber', 'N1_Result': 'COVID.N1', 'N2_Result': 'COVID.N2',
+                              'RP_Result': "COVID.RP", 'Result_Interpretation': 'COVID19S.T'}, inplace=True)
 
         # Capitalize negative/positive in N1/N2/RP Results fields
         merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
@@ -917,7 +1153,7 @@ class AIHGdataprocessor:
         merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
 
         # controls df for log file
-        controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)]\
+        controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
             .copy(deep=True).sort_values(by=['Sample_Name'])
 
         # For output
@@ -942,7 +1178,7 @@ class AIHGdataprocessor:
                     row_start_2 = row2
                     break
         # Subset raw file for only portion below "Well" and remainder of header
-        runinfo = info_orig[row_start_2:(row_start_2+9)]
+        runinfo = info_orig[row_start_2:(row_start_2 + 9)]
 
         # Reset index
         runinfo.reset_index(drop=True)
