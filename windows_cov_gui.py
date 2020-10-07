@@ -1127,30 +1127,30 @@ class AIHGdataprocessor:
         samples = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
             .copy(deep=True).sort_values(by=['Sample_Name'])
 
-        # # Automatically read in panel data file that is updated every 4 hours
-        # path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
-        # paneldf = pd.read_csv(path2, header=0)
-        #
-        # # Merge results with panel id file
-        # merge = pd.merge(samples, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
-        #
-        # # Add placeholder columns
-        # merge["COVID19S.P"] = ""
-        # merge["COVID19S.SRC"] = ""
-        # merge["COVID19S.SYM"] = ""
-        #
-        # # Select only columns of interest
-        # merge = merge[['PanelID', 'Sample_Name', 'N1_Result', 'N2_Result', 'RP_Result', 'COVID19S.P', 'COVID19S.SRC',
-        #                'COVID19S.SYM', 'Result_Interpretation']]
-        #
-        # # Adjust column names
-        # merge.rename(columns={'Sample_Name': 'AccountNumber', 'N1_Result': 'COVID.N1', 'N2_Result': 'COVID.N2',
-        #                       'RP_Result': "COVID.RP", 'Result_Interpretation': 'COVID19S.T'}, inplace=True)
-        #
-        # # Capitalize negative/positive in N1/N2/RP Results fields
-        # merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
-        # merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
-        # merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+        paneldf = pd.read_csv(path2, header=0)
+
+        # Merge results with panel id file
+        merge = pd.merge(samples, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+
+        # Add placeholder columns
+        merge["COVID19S.P"] = ""
+        merge["COVID19S.SRC"] = ""
+        merge["COVID19S.SYM"] = ""
+
+        # Select only columns of interest
+        merge = merge[['PanelID', 'Sample_Name', 'N1_Result', 'N2_Result', 'RP_Result', 'COVID19S.P', 'COVID19S.SRC',
+                       'COVID19S.SYM', 'Result_Interpretation']]
+
+        # Adjust column names
+        merge.rename(columns={'Sample_Name': 'AccountNumber', 'N1_Result': 'COVID.N1', 'N2_Result': 'COVID.N2',
+                              'RP_Result': "COVID.RP", 'Result_Interpretation': 'COVID19S.T'}, inplace=True)
+
+        # Capitalize negative/positive in N1/N2/RP Results fields
+        merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
+        merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
+        merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
 
         # controls df for log file
         controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
@@ -1169,9 +1169,7 @@ class AIHGdataprocessor:
         newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
         normpath = os.path.normpath(newpath)
         new_base = meditech_timestr + '_COVID19S.csv'
-        # REMOVE THIS LINE
-        samples.to_csv(normpath + '\\' + new_base, sep=",", index=False)
-        # merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+        merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
         info_orig = pd.read_excel(path, sheet_name="Results", header=None)
         for row2 in range(info_orig.shape[0]):
