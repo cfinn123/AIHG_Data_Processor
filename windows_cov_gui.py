@@ -985,13 +985,38 @@ class AIHGdataprocessor:
 
             messagebox.showinfo("Complete", "Data Processing Complete!")
 
-# Multiplex analysis - NOTE CHANGES TO RP TARGET AND NO AMP FLAG FOR THIS TARGET.
+# Multiplex analysis
     def multiplexprocess(self):
         # Ingest input file
         # ask the user for an input read in the file selected by the user
         messagebox.showinfo("Select results file", "Select RT-PCR file to analyze")
         path = filedialog.askopenfilename()
 
+        # New code for replacing NOAMP flags in multiplex output to per target/per well flags instead of per well flags.
+        df_amp = pd.read_excel(path, sheet_name="Amplification Data", header=None)
+        for row in range(df_amp.shape[0]):
+            for col in range(df_amp.shape[1]):
+                if df_amp.iat[row, col] == "Well":
+                    row_start = row
+                    break
+
+        # Subset raw file for rows containing "Well" and below
+        df2 = df_amp[row_start:]
+
+        # Make row 1 the new header
+        df2 = df2.rename(columns=df2.iloc[0]).drop(df2.index[0])
+        df2.reset_index(drop=True, inplace=True)
+
+        # Make a new dataframe with max value of 'Delta Rn' per target per well
+        df3 = df2.groupby(['Well', 'Target Name'], as_index=False)['Delta Rn'].max()
+
+        # TODO: DEFINE AMP VALUE THRESHOLD VALUE HERE (0.1 is default in qPCR software)
+        amp_value = 0.1
+
+        df3.loc[(df3['Delta Rn']) > amp_value, 'targetNOAMP'] = 'N'
+        df3.loc[(df3['Delta Rn']) <= amp_value, 'targetNOAMP'] = 'Y'
+
+        # Read in Results
         # To accommodate either QuantStudio or ViiA7
         df_orig = pd.read_excel(path, sheet_name="Results", header=None)
         for row in range(df_orig.shape[0]):
@@ -1014,16 +1039,20 @@ class AIHGdataprocessor:
         # Convert 'undetermined' to 'NaN' for 'CT' column
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
+        # MERGE AMPLIFICATION DATA SUMMARY WITH RESULTS
+        df_combined = df.merge(df3, left_on=['Well', 'Target Name'], right_on=['Well', 'Target Name'])
+
         # TODO: DEFINE CT VALUE HERE
         ct_value = 40.00
 
-        # New code
-        pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT", "NOAMP"])
+        # New code - this part updated to include targetNOAMP
+        pt = df_combined.pivot(index="Sample Name", columns="Target Name", values=["CT", "NOAMP"])
         new_df = pd.DataFrame(pt.to_records()).rename(columns={'Target Name': 'index'})
 
+        # This part updated to be 'targetNOAMP' instead of 'NOAMP' for each target: N1, N2, RP
         newcols = {"Sample Name": "Sample_Name", "('CT', 'N1')": "N1_CT", "('CT', 'N2')": "N2_CT",
-                   "('CT', 'RP')": "RP_CT", "('NOAMP', 'N1')": "N1_NOAMP", "('NOAMP', 'N2')": "N2_NOAMP",
-                   "('NOAMP', 'RP')": "RP_NOAMP"}
+                   "('CT', 'RP')": "RP_CT", "('targetNOAMP', 'N1')": "N1_NOAMP", "('targetNOAMP', 'N2')": "N2_NOAMP",
+                   "('targetNOAMP', 'RP')": "RP_NOAMP"}
         new_df.columns = new_df.columns.map(newcols)
 
         new_df['N1_Result'] = np.nan
@@ -1040,14 +1069,12 @@ class AIHGdataprocessor:
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "Y"), 'N2_Result'] = 'negative'
         new_df.loc[(new_df['N2_CT'] <= ct_value) & (new_df['N2_NOAMP'] == "N"), 'N2_Result'] = 'positive'
 
-        # CHANGES EXIST HERE
         new_df['RP_Result'] = np.nan
         new_df.loc[(new_df['RP_CT'].isnull()), 'RP_Result'] = "negative"
-        #        new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+        new_df.loc[(new_df['RP_CT'].isnull()) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
         new_df.loc[(new_df['RP_CT'] > ct_value), 'RP_Result'] = 'negative'
-        #        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
-        # This portion removed before the comma  "& (new_df['RP_NOAMP'] == "N")"
-        new_df.loc[(new_df['RP_CT'] <= ct_value), 'RP_Result'] = 'positive'
+        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "Y"), 'RP_Result'] = 'negative'
+        new_df.loc[(new_df['RP_CT'] <= ct_value) & (new_df['RP_NOAMP'] == "N"), 'RP_Result'] = 'positive'
 
         # Assess controls
         # Expected performance of controls
