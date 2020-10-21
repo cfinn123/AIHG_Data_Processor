@@ -1098,8 +1098,8 @@ class AIHGdataprocessor:
 
         df_dedup = df.drop_duplicates(subset=['Sample Name', 'Well Position'], keep='first')
 
-        tempdf = pd.merge(new_df, df_dedup[['Sample Name', 'Well Position']], left_on='Sample_Name', right_on='Sample Name',
-                        how='left')
+        tempdf = pd.merge(new_df, df_dedup[['Sample Name', 'Well Position', 'Well']], left_on='Sample_Name',
+                          right_on='Sample Name', how='left')
 
         tempdf = tempdf.sort_values(by='Well')
 
@@ -1112,6 +1112,7 @@ class AIHGdataprocessor:
         outname = os.path.split(path)
         outname1 = outname[0]
         outfilename = outname[1]
+        cleanname = outfilename[:-4]
 
         # Prepare the outpath for the processed data using a timestamp
         # meditech_timestr = time.strftime('%Y%m%d%H%M')
@@ -1120,7 +1121,7 @@ class AIHGdataprocessor:
         mypath = os.path.abspath(os.path.dirname(path))
         newpath = os.path.join(mypath, '../output')
         normpath = os.path.normpath(newpath)
-        new_base = 'expfail_test.csv'
+        new_base = cleanname + '_expfail_test.csv'
         expfaileval.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
 
