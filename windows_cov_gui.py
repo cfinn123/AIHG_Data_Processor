@@ -1231,8 +1231,8 @@ class AIHGdataprocessor:
                    'Result_Interpretation'] = 'Invalid'
 
         new_df = new_df[
-            ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_Result', 'RP_CT', 'RP_NOAMP',
-             'RP_Result', 'Result_Interpretation', 'controls_result']]
+            ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_EXPFAIL', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_EXPFAIL',
+             'N2_Result', 'RP_CT', 'RP_NOAMP', 'RP_EXPFAIL', 'RP_Result', 'Result_Interpretation', 'controls_result']]
 
         # Create a df of only samples (exclude controls)
         controls_list = ['NTC', 'NEG', 'nCoVPC']
