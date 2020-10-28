@@ -1,6 +1,11 @@
 """
 By: Jeffrey Beck and Casey Finnicum
 
+DISCLAIMER: The use of the code is the responsibility of the user. The authors take no responsibility and/or liability
+for how the source code is utilized. The tools below are meant to assist with file formatting and file manipulation to
+expedite the testing process, but by no means are intended to replace standard laboratory practices for result
+interpretation or reporting.
+
 Date of inception: March 16, 2020
 1. Program for determining results of 2019-nCoV testing at the Avera Institute for Human Genetics (AIHG).
 Ingests files from RT-qPCR assay and creates summarized results for upload.
@@ -1091,6 +1096,23 @@ class AIHGdataprocessor:
                    "('targetEXPFAIL', 'N2')": "N2_EXPFAIL", "('targetEXPFAIL', 'RP')": "RP_EXPFAIL"}
         new_df.columns = new_df.columns.map(newcols)
 
+        # Adding new logic for creating a per target and aggregated Review Flag to draw attention to instances of
+        # NOAMP and EXPFAIL being discordant.
+
+        new_df['Review_N1'] = np.nan
+        new_df.loc[(new_df['N1_CT'].notnull()) & (new_df['N1_NOAMP'] != new_df['N1_EXPFAIL']), 'Review_N1'] = 'Y'
+
+        new_df['Review_N2'] = np.nan
+        new_df.loc[(new_df['N2_CT'].notnull()) & (new_df['N2_NOAMP'] != new_df['N2_EXPFAIL']), 'Review_N2'] = 'Y'
+
+        # Not as informative given that RP can fail when N1 and N2 show low CT values - sample still positive in this
+        # instance
+        # new_df['Review_RP'] = np.nan
+        # new_df.loc[(new_df['RP_CT'].notnull()) & (new_df['RP_NOAMP'] != new_df['RP_EXPFAIL']), 'Review_RP'] = 'Y'
+
+        collapse_cols = ['Review_N1', 'Review_N2']   # Add 'Review_RP' if needed
+        new_df['Review'] = new_df[collapse_cols].bfill(axis=1).iloc[:, 0]
+
         # This portion for testing to preserve Well Position and to write simple output for Brittany and Brandon
         # df_dedup = df.drop_duplicates(subset=['Sample Name', 'Well Position'], keep='first')
         #
@@ -1230,9 +1252,15 @@ class AIHGdataprocessor:
                    (new_df['RP_Result'] == 'negative'),
                    'Result_Interpretation'] = 'Invalid'
 
+        # TODO: Added Review column here for testing.
         new_df = new_df[
             ['Sample_Name', 'N1_CT', 'N1_NOAMP', 'N1_EXPFAIL', 'N1_Result', 'N2_CT', 'N2_NOAMP', 'N2_EXPFAIL',
-             'N2_Result', 'RP_CT', 'RP_NOAMP', 'RP_EXPFAIL', 'RP_Result', 'Result_Interpretation', 'controls_result']]
+             'N2_Result', 'RP_CT', 'RP_NOAMP', 'RP_EXPFAIL', 'RP_Result', 'Result_Interpretation', 'Review',
+             'controls_result']]
+
+        new_df['N1_CT'].fillna('Undetermined', inplace=True)
+        new_df['N2_CT'].fillna('Undetermined', inplace=True)
+        new_df['RP_CT'].fillna('Undetermined', inplace=True)
 
         # Create a df of only samples (exclude controls)
         controls_list = ['NTC', 'NEG', 'nCoVPC']
@@ -1240,34 +1268,58 @@ class AIHGdataprocessor:
         samples = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
             .copy(deep=True).sort_values(by=['Sample_Name'])
 
+        # TODO: UNCOMMMENT FROM HERE
         # # Automatically read in panel data file that is updated every 4 hours
         # path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
         # paneldf = pd.read_csv(path2, header=0)
         #
         # # Merge results with panel id file
-        # merge = pd.merge(samples, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+        # merge = pd.merge(new_df, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
         #
-        # # Add placeholder columns
-        # merge["COVID19S.P"] = ""
-        # merge["COVID19S.SRC"] = ""
-        # merge["COVID19S.SYM"] = ""
+        # merge_clean = merge[["PanelID", "Sample_Name", "N1_CT", "N1_NOAMP", "N1_EXPFAIL", "N1_Result", "N2_CT",
+        #                      "N2_NOAMP", "N2_EXPFAIL", "N2_Result", "RP_CT", "RP_NOAMP", "RP_EXPFAIL", "RP_Result",
+        #                      "Result_Interpretation", "controls_result"]]
         #
-        # # Select only columns of interest
-        # merge = merge[['PanelID', 'Sample_Name', 'N1_Result', 'N2_Result', 'RP_Result', 'COVID19S.P', 'COVID19S.SRC',
-        #                'COVID19S.SYM', 'Result_Interpretation']]
+        # # # Add placeholder columns
+        # # merge["COVID19S.P"] = ""
+        # # merge["COVID19S.SRC"] = ""
+        # # merge["COVID19S.SYM"] = ""
         #
-        # # Adjust column names
-        # merge.rename(columns={'Sample_Name': 'AccountNumber', 'N1_Result': 'COVID.N1', 'N2_Result': 'COVID.N2',
-        #                       'RP_Result': "COVID.RP", 'Result_Interpretation': 'COVID19S.T'}, inplace=True)
+        # # # Select only columns of interest
+        # # merge = merge[['PanelID', 'Sample_Name', 'N1_Result', 'N2_Result', 'RP_Result', 'COVID19S.P', 'COVID19S.SRC',
+        # #                'COVID19S.SYM', 'Result_Interpretation']]
         #
-        # # Capitalize negative/positive in N1/N2/RP Results fields
-        # merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
-        # merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
-        # merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
-
-        # controls df for log file
-        controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
-            .copy(deep=True).sort_values(by=['Sample_Name'])
+        # # # Adjust column names
+        # # merge.rename(columns={'Sample_Name': 'AccountNumber', 'N1_Result': 'COVID.N1', 'N2_Result': 'COVID.N2',
+        # #                       'RP_Result': "COVID.RP", 'Result_Interpretation': 'COVID19S.T'}, inplace=True)
+        # #
+        # # # Capitalize negative/positive in N1/N2/RP Results fields
+        # # merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
+        # # merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
+        # # merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
+        #
+        # # Prepare the outpath for the processed data using a timestamp
+        # timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+        #
+        # # Break file path/name to extract barcode from file name
+        # outname = os.path.split(path)
+        # dir_path = outname[0]
+        # plate_barcode = outname[1]
+        #
+        # # For Windows-based file paths
+        # mypath = os.path.abspath(os.path.dirname(path))
+        # newpath = os.path.join(mypath, '../../processed/output_for_LIMS')
+        # normpath = os.path.normpath(newpath)
+        #
+        # # Replace new_base with plate_barcode
+        # # new_base = timestr + '_covid_results.csv'
+        #
+        # merge_clean.to_csv(normpath + '\\' + plate_barcode + '.csv', sep=",", index=False)
+        #
+        #
+        # # controls df for log file
+        # controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+        #     .copy(deep=True).sort_values(by=['Sample_Name'])
 
         # # For output
         # outname = os.path.split(path)
@@ -1315,7 +1367,7 @@ class AIHGdataprocessor:
         mypath = os.path.abspath(os.path.dirname(path))
         newpath = os.path.join(mypath, '../output')
         normpath = os.path.normpath(newpath)
-        new_base = cleanname + '_expfail_verification.csv'
+        new_base = cleanname + '_ReviewFlag_Eval.csv'
         samples.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
         # # Define log file parameters
