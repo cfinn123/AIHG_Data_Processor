@@ -1354,10 +1354,10 @@ class AIHGdataprocessor:
         log_base = meditech_timestr + '_Meditech_covid_output.log'
         log_filename = normlogpath + '\\' + log_base
 
-        # # For output
-        # outname = os.path.split(path)
-        # outname1 = outname[0]
-        # outfilename = outname[1]
+        # For output
+        outname = os.path.split(path)
+        outname1 = outname[0]
+        outfilename = outname[1]
         # cleanname = outfilename[:-4]
         #
         # # Prepare the outpath for the processed data using a timestamp
