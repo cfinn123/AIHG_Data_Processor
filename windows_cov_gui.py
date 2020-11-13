@@ -1269,17 +1269,17 @@ class AIHGdataprocessor:
             .copy(deep=True).sort_values(by=['Sample_Name'])
 
         # TODO: UNCOMMMENT FROM HERE
-        # # Automatically read in panel data file that is updated every 4 hours
-        # path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
-        # paneldf = pd.read_csv(path2, header=0)
-        #
-        # # Merge results with panel id file
-        # merge = pd.merge(new_df, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
-        #
-        # merge_clean = merge[["PanelID", "Sample_Name", "N1_CT", "N1_NOAMP", "N1_EXPFAIL", "N1_Result", "N2_CT",
-        #                      "N2_NOAMP", "N2_EXPFAIL", "N2_Result", "RP_CT", "RP_NOAMP", "RP_EXPFAIL", "RP_Result",
-        #                      "Result_Interpretation", "controls_result"]]
-        #
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+        paneldf = pd.read_csv(path2, header=0)
+
+        # Merge results with panel id file
+        merge = pd.merge(new_df, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+
+        merge_clean = merge[["PanelID", "Sample_Name", "N1_CT", "N1_NOAMP", "N1_EXPFAIL", "N1_Result", "N2_CT",
+                             "N2_NOAMP", "N2_EXPFAIL", "N2_Result", "RP_CT", "RP_NOAMP", "RP_EXPFAIL", "RP_Result",
+                             "Result_Interpretation", "Review", "controls_result"]]
+
         # # # Add placeholder columns
         # # merge["COVID19S.P"] = ""
         # # merge["COVID19S.SRC"] = ""
@@ -1297,26 +1297,26 @@ class AIHGdataprocessor:
         # # merge['COVID.N1'] = merge['COVID.N1'].str.capitalize()
         # # merge['COVID.N2'] = merge['COVID.N2'].str.capitalize()
         # # merge['COVID.RP'] = merge['COVID.RP'].str.capitalize()
-        #
-        # # Prepare the outpath for the processed data using a timestamp
-        # timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
-        #
-        # # Break file path/name to extract barcode from file name
-        # outname = os.path.split(path)
-        # dir_path = outname[0]
-        # plate_barcode = outname[1]
-        #
-        # # For Windows-based file paths
-        # mypath = os.path.abspath(os.path.dirname(path))
-        # newpath = os.path.join(mypath, '../../processed/output_for_LIMS')
-        # normpath = os.path.normpath(newpath)
-        #
-        # # Replace new_base with plate_barcode
-        # # new_base = timestr + '_covid_results.csv'
-        #
-        # merge_clean.to_csv(normpath + '\\' + plate_barcode + '.csv', sep=",", index=False)
-        #
-        #
+
+        # Prepare the outpath for the processed data using a timestamp
+        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
+        # Break file path/name to extract barcode from file name
+        outname = os.path.split(path)
+        dir_path = outname[0]
+        plate_barcode = outname[1]
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../../processed/output_for_LIMS')
+        normpath = os.path.normpath(newpath)
+
+        # Replace new_base with plate_barcode
+        # new_base = timestr + '_covid_results.csv'
+
+        merge_clean.to_csv(normpath + '\\' + plate_barcode + '.csv', sep=",", index=False)
+
+
         # # controls df for log file
         # controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
         #     .copy(deep=True).sort_values(by=['Sample_Name'])
@@ -1326,73 +1326,73 @@ class AIHGdataprocessor:
         # outname1 = outname[0]
         # outfilename = outname[1]
         #
-        # # Prepare the outpath for the processed data using a timestamp
-        # meditech_timestr = time.strftime('%Y%m%d%H%M')
-        #
+        # Prepare the outpath for the processed data using a timestamp
+        meditech_timestr = time.strftime('%Y%m%d%H%M')
+
         # # For Windows-based file paths
         # mypath = os.path.abspath(os.path.dirname(path))
         # newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
         # normpath = os.path.normpath(newpath)
         # new_base = meditech_timestr + '_COVID19S.csv'
         # merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
-        #
-        # info_orig = pd.read_excel(path, sheet_name="Results", header=None)
-        # for row2 in range(info_orig.shape[0]):
-        #     for col2 in range(info_orig.shape[1]):
-        #         if info_orig.iat[row2, col2] == "Experiment File Name":
-        #             row_start_2 = row2
-        #             break
-        # # Subset raw file for only portion below "Well" and remainder of header
-        # runinfo = info_orig[row_start_2:(row_start_2 + 9)]
-        #
-        # # Reset index
-        # runinfo.reset_index(drop=True)
+
+        info_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row2 in range(info_orig.shape[0]):
+            for col2 in range(info_orig.shape[1]):
+                if info_orig.iat[row2, col2] == "Experiment File Name":
+                    row_start_2 = row2
+                    break
+        # Subset raw file for only portion below "Well" and remainder of header
+        runinfo = info_orig[row_start_2:(row_start_2 + 9)]
+
+        # Reset index
+        runinfo.reset_index(drop=True)
         #
         # # For Windows-based file paths
-        # newlogpath = os.path.join(mypath, '../../processed/logs')
-        # normlogpath = os.path.normpath(newlogpath)
-        # log_base = meditech_timestr + '_Meditech_covid_output.log'
-        # log_filename = normlogpath + '\\' + log_base
+        newlogpath = os.path.join(mypath, '../../processed/logs')
+        normlogpath = os.path.normpath(newlogpath)
+        log_base = meditech_timestr + '_Meditech_covid_output.log'
+        log_filename = normlogpath + '\\' + log_base
 
-        # For output
-        outname = os.path.split(path)
-        outname1 = outname[0]
-        outfilename = outname[1]
-        cleanname = outfilename[:-4]
+        # # For output
+        # outname = os.path.split(path)
+        # outname1 = outname[0]
+        # outfilename = outname[1]
+        # cleanname = outfilename[:-4]
+        #
+        # # Prepare the outpath for the processed data using a timestamp
+        # # meditech_timestr = time.strftime('%Y%m%d%H%M')
+        #
+        # # For Windows-based file paths
+        # mypath = os.path.abspath(os.path.dirname(path))
+        # newpath = os.path.join(mypath, '../output')
+        # normpath = os.path.normpath(newpath)
+        # new_base = cleanname + '_ReviewFlag_Eval.csv'
+        # samples.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
-        # Prepare the outpath for the processed data using a timestamp
-        # meditech_timestr = time.strftime('%Y%m%d%H%M')
-
-        # For Windows-based file paths
-        mypath = os.path.abspath(os.path.dirname(path))
-        newpath = os.path.join(mypath, '../output')
-        normpath = os.path.normpath(newpath)
-        new_base = cleanname + '_ReviewFlag_Eval.csv'
-        samples.to_csv(normpath + '\\' + new_base, sep=",", index=False)
-
-        # # Define log file parameters
-        # logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
-        #                     datefmt='%H:%M:%S')
-        # # Info for log file
-        # logging.info(' Name of input file: ' + outfilename)
-        # logging.info('\n')
-        # logging.info('Run information: ')
-        # logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
-        # logging.info('\n')
-        # logging.info(' Number of controls run: ' + str(len(controls_filtered['Sample_Name'].unique().tolist())))
-        # logging.info(' Controls run: ' + str(controls_filtered['Sample_Name'].unique()))
-        # logging.info('\n')
-        # logging.info(' Results of controls: ')
-        # logging.info('\n' + controls_filtered.to_string())
-        # logging.warning('\t')
-        # logging.warning(
-        #     str('If any of the above controls do not exhibit the expected performance as described, the assay may '
-        #         'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
-        #         'occurred. Invalidate the run and re-test.'))
-        # logging.warning('\n')
-        # logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
-        # logging.info('Samples run: ')
-        # logging.info(str(samples['Sample_Name'].unique()))
+        # Define log file parameters
+        logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S')
+        # Info for log file
+        logging.info(' Name of input file: ' + outfilename)
+        logging.info('\n')
+        logging.info('Run information: ')
+        logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
+        logging.info('\n')
+        logging.info(' Number of controls run: ' + str(len(controls_filtered['Sample_Name'].unique().tolist())))
+        logging.info(' Controls run: ' + str(controls_filtered['Sample_Name'].unique()))
+        logging.info('\n')
+        logging.info(' Results of controls: ')
+        logging.info('\n' + controls_filtered.to_string())
+        logging.warning('\t')
+        logging.warning(
+            str('If any of the above controls do not exhibit the expected performance as described, the assay may '
+                'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
+                'occurred. Invalidate the run and re-test.'))
+        logging.warning('\n')
+        logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
+        logging.info('Samples run: ')
+        logging.info(str(samples['Sample_Name'].unique()))
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
