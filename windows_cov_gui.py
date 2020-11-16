@@ -65,7 +65,7 @@ class AIHGdataprocessor:
 
         # Button for analyzing RT_PCR data
         self.rtpcr_button = Button(master, text='Singleplex - Select RT-PCR file to analyze', command=self.dataprocess,
-                                   width=30)
+                                   width=40)
         self.rtpcr_button.pack(pady=10)
 
         # Button for converting Meditch to BSI (PGx formatting)
@@ -100,7 +100,7 @@ class AIHGdataprocessor:
 
         # Button for LIMS-friendly output
         self.lims_convert_button = Button(master, text="LIMS - Select multiplex RT-PCR file to analyze",
-                                          command=self.limsprocess, width=30)
+                                          command=self.limsprocess, width=40)
         self.lims_convert_button.pack(pady=10)
 
         # Button for Meditech-friendly output - will need follow up prompt for selecting metadata file from dashboard
