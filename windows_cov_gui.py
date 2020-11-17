@@ -507,22 +507,38 @@ class AIHGdataprocessor:
                     acct_line = line.split(':')
 
                     # get the name information
-                    list_split = acct_line[1].split(' ')
-                    lastFirst = list_split[1]
-                    middle = list_split[2]
-                    last, first = lastFirst.split(',')
-                    # this will fix the nickname issue, will append nickname to the middle name with a space in the
-                    # middle
-                    if list_split[3] != '':
-                        nick_name = list_split[3]
-                        middle_base = middle.strip(' ')
-                        middle_out = middle_base + ' ' + nick_name
-                        patient_dict['middle'] = middle_out
-                    else:
-                        patient_dict['middle'] = middle.strip(' ')
-
-                    patient_dict['first'] = first.strip(' ')
+                    list_split = acct_line[1].split('  ')
+                    lastFirst = list_split[0].split(',')
+                    last = lastFirst[0]
                     patient_dict['Last Name'] = last.strip(' ')
+                    first = lastFirst[1].split(' ')[0]
+                    patient_dict['first'] = first.strip(' ')
+                    if len(lastFirst[1].split(' ')) == 2:
+                        middle = lastFirst[1].split(' ')[1]
+                        patient_dict['middle'] = middle.strip(' ')
+                    elif len(lastFirst[1].split(' ')) == 1:
+                        middle = ''
+                        patient_dict['middle'] = middle.strip(' ')
+                    elif len(lastFirst[1].split(' ')) >= 3:
+                        middle = lastFirst[1].split(' ', 1)[1]
+                        patient_dict['middle'] = middle.strip(' ')
+                    else:
+                        pass
+
+                    # middle = list_split[2]
+                    # last, first = lastFirst.split(',')
+                    # # this will fix the nickname issue, will append nickname to the middle name with a space in the
+                    # # middle
+                    # if list_split[3] != '':
+                    #     nick_name = list_split[3]
+                    #     middle_base = middle.strip(' ')
+                    #     middle_out = middle_base + ' ' + nick_name
+                    #     patient_dict['middle'] = middle_out
+                    # else:
+                    #     patient_dict['middle'] = middle.strip(' ')
+                    #
+                    # patient_dict['first'] = first.strip(' ')
+                    # patient_dict['Last Name'] = last.strip(' ')
 
                     # get the account/current label information
                     acctLine = acct_line[2]
@@ -538,7 +554,7 @@ class AIHGdataprocessor:
 
                 elif 'AGE/SX' in line:
                     ageLine = line.split(':')
-                    ageSex = ageLine[1].split(' ')[1]
+                    ageSex = ageLine[1].split(' ', 1)[1]
                     sex = ageSex.split('/')[1]
                     patient_dict['Gender'] = sex.strip(' ')
 
@@ -1131,7 +1147,7 @@ class AIHGdataprocessor:
 
             merge = merge_orig[["PanelID", "Sample_Name", "N1_CT", "N1_NOAMP", "N1_EXPFAIL", "N1_Result", "N2_CT",
                                  "N2_NOAMP", "N2_EXPFAIL", "N2_Result", "RP_CT", "RP_NOAMP", "RP_EXPFAIL", "RP_Result",
-                                 "Result_Interpretation", "Review", "controls_result"]]
+                                 "Result_Interpretation", "Review", "controls_result"]].copy(deep=True)
 
             # Add placeholder columns
             merge["COVID19S.P"] = ""
