@@ -32,6 +32,9 @@ the Meditech report to a BSI-friendly upload file.
 
 Date of major update: October 2020
 6. Added new logic for multiplex RT-PCR assay, including recreation of NOAMP and EXPFAIL flags.
+
+Date of major addition: December 18, 2020
+7. Adding button for LumiraDx SARS-CoV2-RNA STAR Complete run on the QuantStudio 7 Flex.
 """
 
 from tkinter import *
@@ -112,6 +115,14 @@ class AIHGdataprocessor:
         # self.multiplex_button = Button(master, text="Multiplex - Select RT-PCR file to analyze",
         #                               command=self.multiplexprocess, width=40)
         # self.multiplex_button.pack(pady=10)
+
+        self.lumira_lims_button = BUtton(master, text="LumiraDx - LIMS - Select Lumira RT_PCR file to analyze",
+                                    command=self.lumiraprocesslims, width=50)
+        self.lumira_lims_button.pack(pady=10)
+
+        self.lumira_meditech_button = BUtton(master, text="LumiraDx - Meditech - Select Lumira RT_PCR file to analyze",
+                                    command=self.lumiraprocessmeditech, width=50)
+        self.lumira_meditech_button.pack(pady=10)
 
         # Help button
         self.info_button = Button(master, text="Help", command=self.info, width=10)
@@ -592,10 +603,10 @@ class AIHGdataprocessor:
         df_patient['DOB'] = pd.to_datetime(df_patient['DOB'])
         df_patient['DOB'] = df_patient['DOB'].dt.strftime('%m/%d/%Y')
 
-        df_patient['Date Collected'] = pd.to_datetime(df_patient['Date Collected'])
+        df_patient['Date Collected'] = pd.to_datetime(df_patient['Date Collected'], errors='coerce')
         df_patient['Date Collected'] = df_patient['Date Collected'].dt.strftime('%m/%d/%Y %H:%M')
 
-        df_patient['Date Received'] = pd.to_datetime(df_patient['Date Received'])
+        df_patient['Date Received'] = pd.to_datetime(df_patient['Date Received'], errors='coerce')
         df_patient['Date Received'] = df_patient['Date Received'].dt.strftime('%m/%d/%Y %H:%M')
 
         df_patient['Study ID'] = 'PGX'
@@ -889,6 +900,53 @@ class AIHGdataprocessor:
         # Replace new_base with plate_barcode
         # new_base = timestr + '_covid_results.csv'
         merge_clean.to_csv(normpath + '\\' + plate_barcode + '.csv', sep=",", index=False)
+
+        # controls df for log file
+        controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+            .copy(deep=True).sort_values(by=['Sample_Name'])
+
+        info_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row2 in range(info_orig.shape[0]):
+            for col2 in range(info_orig.shape[1]):
+                if info_orig.iat[row2, col2] == "Experiment File Name":
+                    row_start_2 = row2
+                    break
+        # Subset raw file for only portion below "Well" and remainder of header
+        runinfo = info_orig[row_start_2:(row_start_2 + 9)]
+
+        # Reset index
+        runinfo.reset_index(drop=True)
+
+        # For Windows-based file paths
+        newlogpath = os.path.join(mypath, '../../processed/logs')
+        normlogpath = os.path.normpath(newlogpath)
+        log_base = meditech_timestr + '_LIMS_covid_output.log'
+        log_filename = normlogpath + '\\' + log_base
+
+        # Define log file parameters
+        logging.basicConfig(filename=log_filename, level=logging.DEBUG,
+                            format='%(asctime)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S')
+        # Info for log file
+        logging.info(' Name of input file: ' + outfilename)
+        logging.info('\n')
+        logging.info('Run information: ')
+        logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
+        logging.info('\n')
+        logging.info(' Number of controls run: ' + str(len(controls_filtered['Sample_Name'].unique().tolist())))
+        logging.info(' Controls run: ' + str(controls_filtered['Sample_Name'].unique()))
+        logging.info('\n')
+        logging.info(' Results of controls: ')
+        logging.info('\n' + controls_filtered.to_string())
+        logging.warning('\t')
+        logging.warning(
+            str('If any of the above controls do not exhibit the expected performance as described, the assay may '
+                'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
+                'occurred. Invalidate the run and re-test.'))
+        logging.warning('\n')
+        logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
+        logging.info('Samples run: ')
+        logging.info(str(samples['Sample_Name'].unique()))
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
@@ -1673,6 +1731,394 @@ class AIHGdataprocessor:
         writer.save()
 
         messagebox.showinfo("Complete", "File Successfully Converted for BSI!")
+
+
+    # TODO: Add lumiraprocess for LIMS
+    def lumiraprocesslims(selfself):
+        # Ingest input file
+        # ask the user for an input read in the file selected by the user
+        messagebox.showinfo("Select results file", "Select RT_PCR file to analyze")
+        path = filedialog.askopenfilename()
+
+        # To accommodate either QuantStudio or ViiA7
+        df_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row in range(df_orig.shape[0]):
+            for col in range(df_orig.shape[1]):
+                if df_orig.iat[row, col] == "Well":
+                    row_start = row
+                    break
+
+        # Subset raw file for only portion below "Well" and remainder of header
+        df = df_orig[row_start:]
+
+        # Header exists in row 1, make new header
+        new_header = df.iloc[0]
+        df = df[1:]
+        df.columns = new_header
+
+        df.columns = df.columns.str.replace('Cт', 'CT')
+
+        # Convert 'undetermined' to 'NaN' for 'CT' column
+        df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+
+        # TODO: DEFINE CT VALUE HERE - per EUA CT between 5 and 35 is positive
+        ct_value_lb = 3.00
+        ct_value_ub = 25.00
+
+        # New code
+        pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT"])
+        new_df = pd.DataFrame(pt.to_records()).rename(columns={'Target Name': 'index'})
+
+        # This part updated for each target: N1, N2, RP
+        newcols = {"Sample Name": "Sample_Name", "('CT', 'COVID')": "ORF1a_CT", "('CT', 'IC')": "IC_CT"}
+        new_df.columns = new_df.columns.map(newcols)
+
+        # Make result negative unless the CT for ORF1a is between 5 and 35 inclusive
+        new_df['ORF1a_Result'] = 'negative'
+        # new_df.loc[(new_df['ORF1a_CT'].isnull()), 'ORF1a_Result'] = 'negative'
+        # new_df.loc[(new_df['ORF1a_CT'] > ct_value_ub), 'ORF1a_Result'] = 'negative'
+        # new_df.loc[(new_df['ORF1a_CT'] < ct_value_lb), 'ORF1a_Result'] = 'negative'
+        new_df.loc[(new_df['ORF1a_CT'] <= ct_value_ub) & (new_df['ORF1a_CT'] >= ct_value_lb),
+                   'ORF1a_Result'] = 'positive'
+
+        # Make result negative unless the CT for IC is between 5 and 35 inclusive
+        new_df['IC_Result'] = 'negative'
+        # new_df.loc[(new_df['IC_CT'].isnull()), 'IC_Result'] = 'negative'
+        # new_df.loc[(new_df['IC_CT'] > ct_value_ub), 'IC_Result'] = 'negative'
+        # new_df.loc[(new_df['IC_CT'] < ct_value_lb), 'IC_Result'] = 'negative'
+        new_df.loc[(new_df['IC_CT'] <= ct_value_ub) & (new_df['IC_CT'] >= ct_value_lb),
+                   'IC_Result'] = 'positive'
+
+        # Assess controls
+        # Expected performance of controls
+        """
+        Positive control - detects both targets, ORF1a and IC
+        Negative control - only detects IC
+        """
+        new_df['Neg_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
+                           (new_df['Sample_Name'].str.contains("NEG", case=False)) &
+                           (new_df['IC_CT'] <= ct_value_ub) & (new_df['IC_CT'] >= ct_value_lb)), 'Neg_ctrl'] = "passed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
+                (new_df['Sample_Name'].str.contains("NEG", case=False)) &
+                (new_df['IC_CT'] > ct_value_ub) | (new_df['IC_CT'] < ct_value_lb)), 'Neg_ctrl'] = "failed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].notnull())),
+                   'Neg_ctrl'] = "failed"
+
+        # From the FDA EUA - The internal control is not required to amplify for the Pos.Ext.Ctrl.
+        # to be deemed positive.
+        new_df['Pos_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("POS", case=False))), 'Pos_ctrl'] = "failed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("POS", case=False)) & (new_df['ORF1a_CT'] <= ct_value_ub) &
+                    (new_df['ORF1a_CT'] >= ct_value_lb)), 'Pos_ctrl'] = "passed"
+
+        control_cols = ['Neg_ctrl', 'Pos_ctrl']
+        new_df['controls_result'] = new_df[control_cols].apply(lambda x: ''.join(x.dropna()), axis=1)
+        new_df['controls_result'] = new_df['controls_result'].replace(r'^\s*$', np.nan, regex=True)
+        new_df = new_df.sort_values(by='Sample_Name')
+
+        new_df = new_df.drop(['Neg_ctrl', 'Pos_ctrl'], axis=1)
+
+        # Interpretation of Patient Specimen Results
+        # See section 16.2 of https://www.fda.gov/media/141057/download
+        # For a positive result, the Internal Control is not required to amplify
+        new_df.loc[(new_df['ORF1a_Result'] == 'positive'), 'Result_Interpretation'] = 'Positive'
+        new_df.loc[(new_df['ORF1a_Result'] == 'negative') & (new_df['IC_Result'] == 'positive'),
+                   'Result_Interpretation'] = 'Negative'
+        new_df.loc[(new_df['ORF1a_Result'] == 'negative') & (new_df['IC_Result'] == 'negative'),
+                   'Result_Interpretation'] = 'Invalid'
+
+        new_df = new_df[['Sample_Name', 'ORF1a_CT', 'ORF1a_Result', 'IC_CT', 'IC_Result', 'Result_Interpretation',
+                         'controls_result']]
+
+        new_df['ORF1a_CT'].fillna('Undetermined', inplace=True)
+        new_df['IC_CT'].fillna('Undetermined', inplace=True)
+
+        # Create a df of only samples (exclude controls)
+        controls_list = ['NEG' 'POS']
+
+        samples = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+            .copy(deep=True).sort_values(by=['Sample_Name'])
+
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+        paneldf = pd.read_csv(path2, header=0)
+
+        # Merge results with panel id file
+        merge = pd.merge(new_df, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+
+        merge_clean = merge[["PanelID", "Sample_Name", "ORF1a_CT", "ORF1a_Result", "IC_CT", "IC_Result",
+                             "Result_Interpretation", "controls_result"]]
+
+        # Prepare the outpath for the processed data using a timestamp
+        timestr = time.strftime('%m_%d_%Y_%H_%M_%S')
+
+        # Break file path/name to extract barcode from file name
+        outname = os.path.split(path)
+        dir_path = outname[0]
+        fullfilename = outname[1]
+        plate_barcode = fullfilename[:-4]
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../../processed/output_for_LIMS')
+        normpath = os.path.normpath(newpath)
+
+        # Replace new_base with plate_barcode
+        # new_base = timestr + '_covid_results.csv'
+        merge_clean.to_csv(normpath + '\\' + plate_barcode + '.csv', sep=",", index=False)
+
+        ### LOG file
+        # controls df for log file
+        controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+            .copy(deep=True).sort_values(by=['Sample_Name'])
+
+        # Prepare the outpath for the processed data using a timestamp
+        meditech_timestr = time.strftime('%Y%m%d%H%M')
+
+        info_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row2 in range(info_orig.shape[0]):
+            for col2 in range(info_orig.shape[1]):
+                if info_orig.iat[row2, col2] == "Experiment File Name":
+                    row_start_2 = row2
+                    break
+        # Subset raw file for only portion below "Well" and remainder of header
+        runinfo = info_orig[row_start_2:(row_start_2 + 9)]
+
+        # Reset index
+        runinfo.reset_index(drop=True)
+
+        # For Windows-based file paths
+        newlogpath = os.path.join(mypath, '../../processed/logs')
+        normlogpath = os.path.normpath(newlogpath)
+        log_base = meditech_timestr + '_LumiraDX_LIMS.log'
+        log_filename = normlogpath + '\\' + log_base
+
+        # Define log file parameters
+        logging.basicConfig(filename=log_filename, level=logging.DEBUG,
+                            format='%(asctime)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S')
+        # Info for log file
+        logging.info(' Name of input file: ' + outfilename)
+        logging.info('\n')
+        logging.info('Run information: ')
+        logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
+        logging.info('\n')
+        logging.info(' Number of controls run: ' + str(len(controls_filtered['Sample_Name'].unique().tolist())))
+        logging.info(' Controls run: ' + str(controls_filtered['Sample_Name'].unique()))
+        logging.info('\n')
+        logging.info(' Results of controls: ')
+        logging.info('\n' + controls_filtered.to_string())
+        logging.warning('\t')
+        logging.warning(
+            str('If any of the above controls do not exhibit the expected performance as described, the assay may '
+                'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
+                'occurred. Invalidate the run and re-test.'))
+        logging.warning('\n')
+        logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
+        logging.info('Samples run: ')
+        logging.info(str(samples['Sample_Name'].unique()))
+
+        messagebox.showinfo("Complete", "Data Processing Complete!")
+
+    # TODO: Add lumiraprocess for Meditech
+    def lumiraprocessmeditech(selfself):
+        # Ingest input file
+        # ask the user for an input read in the file selected by the user
+        messagebox.showinfo("Select results file", "Select RT_PCR file to analyze")
+        path = filedialog.askopenfilename()
+
+        # To accommodate either QuantStudio or ViiA7
+        df_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row in range(df_orig.shape[0]):
+            for col in range(df_orig.shape[1]):
+                if df_orig.iat[row, col] == "Well":
+                    row_start = row
+                    break
+
+        # Subset raw file for only portion below "Well" and remainder of header
+        df = df_orig[row_start:]
+
+        # Header exists in row 1, make new header
+        new_header = df.iloc[0]
+        df = df[1:]
+        df.columns = new_header
+
+        df.columns = df.columns.str.replace('Cт', 'CT')
+
+        # Convert 'undetermined' to 'NaN' for 'CT' column
+        df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
+
+        # TODO: DEFINE CT VALUE HERE - per EUA CT between 5 and 35 is positive
+        ct_value_lb = 3.00
+        ct_value_ub = 25.00
+
+        # New code
+        pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT"])
+        new_df = pd.DataFrame(pt.to_records()).rename(columns={'Target Name': 'index'})
+
+        # This part updated for each target: N1, N2, RP
+        newcols = {"Sample Name": "Sample_Name", "('CT', 'COVID')": "ORF1a_CT", "('CT', 'IC')": "IC_CT"}
+        new_df.columns = new_df.columns.map(newcols)
+
+        # Make result negative unless the CT for ORF1a is between 5 and 35 inclusive
+        new_df['ORF1a_Result'] = 'negative'
+        # new_df.loc[(new_df['ORF1a_CT'].isnull()), 'ORF1a_Result'] = 'negative'
+        # new_df.loc[(new_df['ORF1a_CT'] > ct_value_ub), 'ORF1a_Result'] = 'negative'
+        # new_df.loc[(new_df['ORF1a_CT'] < ct_value_lb), 'ORF1a_Result'] = 'negative'
+        new_df.loc[(new_df['ORF1a_CT'] <= ct_value_ub) & (new_df['ORF1a_CT'] >= ct_value_lb),
+                   'ORF1a_Result'] = 'positive'
+
+        # Make result negative unless the CT for IC is between 5 and 35 inclusive
+        new_df['IC_Result'] = 'negative'
+        # new_df.loc[(new_df['IC_CT'].isnull()), 'IC_Result'] = 'negative'
+        # new_df.loc[(new_df['IC_CT'] > ct_value_ub), 'IC_Result'] = 'negative'
+        # new_df.loc[(new_df['IC_CT'] < ct_value_lb), 'IC_Result'] = 'negative'
+        new_df.loc[(new_df['IC_CT'] <= ct_value_ub) & (new_df['IC_CT'] >= ct_value_lb),
+                   'IC_Result'] = 'positive'
+
+        # Assess controls
+        # Expected performance of controls
+        """
+        Positive control - detects both targets, ORF1a and IC
+        Negative control - only detects IC
+        """
+        new_df['Neg_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
+                (new_df['Sample_Name'].str.contains("NEG", case=False)) &
+                (new_df['IC_CT'] <= ct_value_ub) & (new_df['IC_CT'] >= ct_value_lb)), 'Neg_ctrl'] = "passed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
+                (new_df['Sample_Name'].str.contains("NEG", case=False)) &
+                (new_df['IC_CT'] > ct_value_ub) | (new_df['IC_CT'] < ct_value_lb)), 'Neg_ctrl'] = "failed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].notnull())),
+                   'Neg_ctrl'] = "failed"
+
+        # From the FDA EUA - The internal control is not required to amplify for the Pos.Ext.Ctrl.
+        # to be deemed positive.
+        new_df['Pos_ctrl'] = np.nan
+        new_df.loc[((new_df['Sample_Name'].str.contains("POS", case=False))), 'Pos_ctrl'] = "failed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("POS", case=False)) & (new_df['ORF1a_CT'] <= ct_value_ub) &
+                    (new_df['ORF1a_CT'] >= ct_value_lb)), 'Pos_ctrl'] = "passed"
+
+        control_cols = ['Neg_ctrl', 'Pos_ctrl']
+        new_df['controls_result'] = new_df[control_cols].apply(lambda x: ''.join(x.dropna()), axis=1)
+        new_df['controls_result'] = new_df['controls_result'].replace(r'^\s*$', np.nan, regex=True)
+        new_df = new_df.sort_values(by='Sample_Name')
+
+        new_df = new_df.drop(['Neg_ctrl', 'Pos_ctrl'], axis=1)
+
+        # Interpretation of Patient Specimen Results
+        # See section 16.2 of https://www.fda.gov/media/141057/download
+        # For a positive result, the Internal Control is not required to amplify
+        new_df.loc[(new_df['ORF1a_Result'] == 'positive'), 'Result_Interpretation'] = 'Positive'
+        new_df.loc[(new_df['ORF1a_Result'] == 'negative') & (new_df['IC_Result'] == 'positive'),
+                   'Result_Interpretation'] = 'Negative'
+        new_df.loc[(new_df['ORF1a_Result'] == 'negative') & (new_df['IC_Result'] == 'negative'),
+                   'Result_Interpretation'] = 'Invalid'
+
+        new_df = new_df[['Sample_Name', 'ORF1a_CT', 'ORF1a_Result', 'IC_CT', 'IC_Result', 'Result_Interpretation',
+                         'controls_result']]
+
+        new_df['ORF1a_CT'].fillna('Undetermined', inplace=True)
+        new_df['IC_CT'].fillna('Undetermined', inplace=True)
+
+        # Create a df of only samples (exclude controls)
+        controls_list = ['NEG' 'POS']
+
+        samples = new_df[~new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+            .copy(deep=True).sort_values(by=['Sample_Name'])
+
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+        paneldf = pd.read_csv(path2, header=0)
+
+        # Merge results with panel id file
+        merge_orig = pd.merge(samples, paneldf, left_on="Sample_Name", right_on="AccountNumber", how="left")
+
+        merge = merge_orig[["PanelID", "Sample_Name", "ORF1a_CT", "ORF1a_Result", "IC_CT", "IC_Result",
+                            "Result_Interpretation", "controls_result"]].copy(deep=True)
+
+        # Add placeholder columns
+        merge["COVID19S.P"] = ""
+        merge["COVID19S.SRC"] = ""
+        merge["COVID19S.SYM"] = ""
+
+        # Select only columns of interest
+        merge = merge[
+            ['PanelID', 'Sample_Name', 'ORF1a_Result', 'IC_Result', 'COVID19S.P', 'COVID19S.SRC',
+             'COVID19S.SYM', 'Result_Interpretation']]
+
+        # Adjust column names
+        merge.rename(columns={'Sample_Name': 'AccountNumber', 'ORF1a_Result': 'COVID.ORF1a', 'IC_Result': "COVID.IC",
+                              'Result_Interpretation': 'COVID19S.T'}, inplace=True)
+
+        # Capitalize negative/positive in ORF1a and IC Results fields
+        merge['COVID.ORF1a'] = merge['COVID.ORF1a'].str.capitalize()
+        merge['COVID.IC'] = merge['COVID.IC'].str.capitalize()
+
+        # controls df for log file
+        controls_filtered = new_df[new_df['Sample_Name'].str.contains('|'.join(controls_list), case=False)] \
+            .copy(deep=True).sort_values(by=['Sample_Name'])
+
+        # For output
+        outname = os.path.split(path)
+        outname1 = outname[0]
+        outfilename = outname[1]
+
+        # Prepare the outpath for the processed data using a timestamp
+        meditech_timestr = time.strftime('%Y%m%d%H%M')
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
+        normpath = os.path.normpath(newpath)
+        new_base = meditech_timestr + '_COVID19S.csv'
+        merge.to_csv(normpath + '\\' + new_base, sep=",", index=False)
+
+        info_orig = pd.read_excel(path, sheet_name="Results", header=None)
+        for row2 in range(info_orig.shape[0]):
+            for col2 in range(info_orig.shape[1]):
+                if info_orig.iat[row2, col2] == "Experiment File Name":
+                    row_start_2 = row2
+                    break
+        # Subset raw file for only portion below "Well" and remainder of header
+        runinfo = info_orig[row_start_2:(row_start_2 + 9)]
+
+        # Reset index
+        runinfo.reset_index(drop=True)
+
+        # For Windows-based file paths
+        newlogpath = os.path.join(mypath, '../../processed/logs')
+        normlogpath = os.path.normpath(newlogpath)
+        log_base = meditech_timestr + '_LumiraDx_Meditech.log'
+        log_filename = normlogpath + '\\' + log_base
+
+        # Define log file parameters
+        logging.basicConfig(filename=log_filename, level=logging.DEBUG,
+                            format='%(asctime)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S')
+        # Info for log file
+        logging.info(' Name of input file: ' + outfilename)
+        logging.info('\n')
+        logging.info('Run information: ')
+        logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
+        logging.info('\n')
+        logging.info(' Number of controls run: ' + str(len(controls_filtered['Sample_Name'].unique().tolist())))
+        logging.info(' Controls run: ' + str(controls_filtered['Sample_Name'].unique()))
+        logging.info('\n')
+        logging.info(' Results of controls: ')
+        logging.info('\n' + controls_filtered.to_string())
+        logging.warning('\t')
+        logging.warning(
+            str('If any of the above controls do not exhibit the expected performance as described, the assay may '
+                'have been set up and/or executed improperly, or reagent or equipment malfunction could have '
+                'occurred. Invalidate the run and re-test.'))
+        logging.warning('\n')
+        logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
+        logging.info('Samples run: ')
+        logging.info(str(samples['Sample_Name'].unique()))
+
+        messagebox.showinfo("Complete", "Data Processing Complete!")
 
     #  TODO: Add statsprocess
     # def statsprocess(self):
