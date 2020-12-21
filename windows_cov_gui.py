@@ -116,11 +116,11 @@ class AIHGdataprocessor:
         #                               command=self.multiplexprocess, width=40)
         # self.multiplex_button.pack(pady=10)
 
-        self.lumira_lims_button = BUtton(master, text="LumiraDx - LIMS - Select Lumira RT_PCR file to analyze",
+        self.lumira_lims_button = Button(master, text="LumiraDx - LIMS - Select Lumira RT_PCR file to analyze",
                                     command=self.lumiraprocesslims, width=50)
         self.lumira_lims_button.pack(pady=10)
 
-        self.lumira_meditech_button = BUtton(master, text="LumiraDx - Meditech - Select Lumira RT_PCR file to analyze",
+        self.lumira_meditech_button = Button(master, text="LumiraDx - Meditech - Select Lumira RT_PCR file to analyze",
                                     command=self.lumiraprocessmeditech, width=50)
         self.lumira_meditech_button.pack(pady=10)
 
@@ -1762,8 +1762,8 @@ class AIHGdataprocessor:
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
         # TODO: DEFINE CT VALUE HERE - per EUA CT between 5 and 35 is positive
-        ct_value_lb = 3.00
-        ct_value_ub = 25.00
+        ct_value_lb = 5.00
+        ct_value_ub = 35.00
 
         # New code
         pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT"])
@@ -1950,8 +1950,8 @@ class AIHGdataprocessor:
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
         # TODO: DEFINE CT VALUE HERE - per EUA CT between 5 and 35 is positive
-        ct_value_lb = 3.00
-        ct_value_ub = 25.00
+        ct_value_lb = 5.00
+        ct_value_ub = 35.00
 
         # New code
         pt = df.pivot(index="Sample Name", columns="Target Name", values=["CT"])
