@@ -35,6 +35,9 @@ Date of major update: October 2020
 
 Date of major addition: December 18, 2020
 7. Adding button for LumiraDx SARS-CoV2-RNA STAR Complete run on the QuantStudio 7 Flex.
+
+Date of addition: December 28, 2020
+8. Added button for ixLayer/Meditech flow - obtaining PanelID using barcode number instead of account number.
 """
 
 from tkinter import *
@@ -68,17 +71,17 @@ class AIHGdataprocessor:
 
         # Button for analyzing RT_PCR data
         self.rtpcr_button = Button(master, text='Singleplex - Select RT-PCR file to analyze', command=self.dataprocess,
-                                   width=40)
+                                   width=50)
         self.rtpcr_button.pack(pady=10)
 
         # Button for converting Meditch to BSI (PGx formatting)
         self.bsiconvert_button = Button(master, text='Select Meditech file to convert for BSI',
-                                        command=self.bsiprocess, width=30)
+                                        command=self.bsiprocess, width=50)
         self.bsiconvert_button.pack(pady=10)
 
         # Button for converting Meditch to BSI (COVID formatting)
         self.covidbsiconvert_button = Button(master, text='COVID - Select file to convert for BSI',
-                                        command=self.covidbsiprocess, width=30)
+                                        command=self.covidbsiprocess, width=50)
         self.covidbsiconvert_button.pack(pady=10)
 
         # Button for manual antibody testing
@@ -103,12 +106,12 @@ class AIHGdataprocessor:
 
         # Button for LIMS-friendly output
         self.lims_convert_button = Button(master, text="LIMS - Select multiplex RT-PCR file to analyze",
-                                          command=self.limsprocess, width=40)
+                                          command=self.limsprocess, width=50)
         self.lims_convert_button.pack(pady=10)
 
         # Button for Meditech-friendly output - will need follow up prompt for selecting metadata file from dashboard
         self.meditech_button = Button(master, text="MEDITECH - Select multiplex RT-PCR file to analyze",
-                                      command=self.meditechprocess, width=40)
+                                      command=self.meditechprocess, width=50)
         self.meditech_button.pack(pady=10)
 
         # Button for multiplex assay
@@ -116,13 +119,16 @@ class AIHGdataprocessor:
         #                               command=self.multiplexprocess, width=40)
         # self.multiplex_button.pack(pady=10)
 
-        self.lumira_lims_button = Button(master, text="LumiraDx - LIMS - Select Lumira RT_PCR file to analyze",
+        self.lumira_lims_button = Button(master, text="LumiraDx - LIMS - Select RT_PCR file to analyze",
                                     command=self.lumiraprocesslims, width=50)
         self.lumira_lims_button.pack(pady=10)
 
-        self.lumira_meditech_button = Button(master, text="LumiraDx - Meditech - Select Lumira RT_PCR file to analyze",
+        self.lumira_meditech_button = Button(master, text="LumiraDx - Meditech - Select RT_PCR file to analyze",
                                     command=self.lumiraprocessmeditech, width=50)
         self.lumira_meditech_button.pack(pady=10)
+
+        self.ixlayer_button = Button(master, text='ixLayer Conversion', command=self.ixlayerprocess, width=50)
+        self.ixlayer_button.pack(pady=10)
 
         # Help button
         self.info_button = Button(master, text="Help", command=self.info, width=10)
@@ -2117,6 +2123,54 @@ class AIHGdataprocessor:
         logging.info(' Number of samples run: ' + str(len(samples['Sample_Name'].unique().tolist())))
         logging.info('Samples run: ')
         logging.info(str(samples['Sample_Name'].unique()))
+
+        messagebox.showinfo("Complete", "Data Processing Complete!")
+
+    # TODO: Add ixlayerprocess
+    def ixlayerprocess(self):
+        messagebox.showinfo("Select ixLayer file", "Select ixLayer file for conversion")
+        path1 = filedialog.askopenfilename()
+        ixlayerdf = pd.read_csv(path1, header=0)
+
+        # Automatically read in panel data file that is updated every 4 hours
+        path2 = "J:/AIHG/AIHG_Covid/AIHG_Covid_Orders/AIHG_Covid_Orders.csv"
+        paneldf = pd.read_csv(path2, header=0)
+
+        merge = pd.merge(ixlayerdf, paneldf, left_on="Kit ID", right_on="BarCode", how="left")
+
+        # Add placeholder columns
+        merge["COVID.N1"] = ""
+        merge["COVID.N2"] = ""
+        merge["COVID.RP"] = ""
+        merge["COVID19S.P"] = ""
+        merge["COVID19S.SRC"] = ""
+        merge["COVID19S.SYM"] = ""
+
+        meditechdf = merge[["PanelID", "Kit ID", "COVID.N1", "COVID.N2", "COVID.RP", "COVID19S.P", "COVID19S.SRC",
+                            "COVID19S.SYM", "COVID19.S.T"]].copy(deep=True)
+
+        # Adjust column names
+        meditechdf.rename(columns={'Kit ID': 'AccountNumber'}, inplace=True)
+
+        # Capitalize negative/positive in ORF1a and IC Results fields
+        meditechdf['COVID.N1'] = meditechdf['COVID.N1'].str.capitalize()
+        meditechdf['COVID.N2'] = meditechdf['COVID.N2'].str.capitalize()
+        meditechdf['COVID.RP'] = meditechdf['COVID.RP'].str.capitalize()
+
+        # For output
+        outname = os.path.split(path)
+        outname1 = outname[0]
+        outfilename = outname[1]
+
+        # Prepare the outpath for the processed data using a timestamp
+        meditech_timestr = time.strftime('%Y%m%d%H%M')
+
+        # For Windows-based file paths
+        mypath = os.path.abspath(os.path.dirname(path))
+        newpath = os.path.join(mypath, '../../processed/output_for_Meditech')
+        normpath = os.path.normpath(newpath)
+        new_base = meditech_timestr + '_COVID19S.csv'
+        meditechdf.to_csv(normpath + '\\' + new_base, sep=",", index=False)
 
         messagebox.showinfo("Complete", "Data Processing Complete!")
 
