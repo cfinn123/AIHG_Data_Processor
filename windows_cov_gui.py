@@ -1798,24 +1798,24 @@ class AIHGdataprocessor:
         # Assess controls
         # Expected performance of controls
         """
-        Positive control - detects both targets, ORF1a and IC
-        Negative control - only detects IC
+        Positive control - detects both targets, ORF1a and IC - Sample name will be barcode_B01 (ex. H9K00IL2_B01)
+        Negative control - only detects IC - Sample name will be barcode_A01 (ex. H9K00IL2_A01)
         """
         new_df['Neg_ctrl'] = np.nan
-        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
-                           (new_df['Sample_Name'].str.contains("NEG", case=False)) &
+        new_df.loc[((new_df['Sample_Name'].str.contains("_A01", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
+                           (new_df['Sample_Name'].str.contains("_A01", case=False)) &
                            (new_df['IC_CT'] <= ct_value_ub) & (new_df['IC_CT'] >= ct_value_lb)), 'Neg_ctrl'] = "passed"
-        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
-                (new_df['Sample_Name'].str.contains("NEG", case=False)) &
+        new_df.loc[((new_df['Sample_Name'].str.contains("_A01", case=False)) & (new_df['ORF1a_CT'].isnull())) & (
+                (new_df['Sample_Name'].str.contains("_A01", case=False)) &
                 (new_df['IC_CT'] > ct_value_ub) | (new_df['IC_CT'] < ct_value_lb)), 'Neg_ctrl'] = "failed"
-        new_df.loc[((new_df['Sample_Name'].str.contains("NEG", case=False)) & (new_df['ORF1a_CT'].notnull())),
+        new_df.loc[((new_df['Sample_Name'].str.contains("_A01", case=False)) & (new_df['ORF1a_CT'].notnull())),
                    'Neg_ctrl'] = "failed"
 
         # From the FDA EUA - The internal control is not required to amplify for the Pos.Ext.Ctrl.
         # to be deemed positive.
         new_df['Pos_ctrl'] = np.nan
-        new_df.loc[((new_df['Sample_Name'].str.contains("POS", case=False))), 'Pos_ctrl'] = "failed"
-        new_df.loc[((new_df['Sample_Name'].str.contains("POS", case=False)) & (new_df['ORF1a_CT'] <= ct_value_ub) &
+        new_df.loc[((new_df['Sample_Name'].str.contains("_B01", case=False))), 'Pos_ctrl'] = "failed"
+        new_df.loc[((new_df['Sample_Name'].str.contains("_B01", case=False)) & (new_df['ORF1a_CT'] <= ct_value_ub) &
                     (new_df['ORF1a_CT'] >= ct_value_lb)), 'Pos_ctrl'] = "passed"
 
         control_cols = ['Neg_ctrl', 'Pos_ctrl']
@@ -1897,7 +1897,7 @@ class AIHGdataprocessor:
         # For Windows-based file paths
         newlogpath = os.path.join(mypath, '../../processed/logs')
         normlogpath = os.path.normpath(newlogpath)
-        log_base = meditech_timestr + '_LumiraDX_LIMS.log'
+        log_base = meditech_timestr + plate_barcode + '_LumiraDX_LIMS.log'
         log_filename = normlogpath + '\\' + log_base
 
         # Define log file parameters
@@ -1905,7 +1905,7 @@ class AIHGdataprocessor:
                             format='%(asctime)s %(levelname)s %(message)s',
                             datefmt='%H:%M:%S')
         # Info for log file
-        logging.info(' Name of input file: ' + outfilename)
+        logging.info(' Name of input file: ' + plate_barcode)
         logging.info('\n')
         logging.info('Run information: ')
         logging.info('\n' + runinfo.loc[:, [0, 1]].to_string(index=False, header=False))
