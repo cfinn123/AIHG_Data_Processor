@@ -1768,7 +1768,8 @@ class AIHGdataprocessor:
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
         # TODO: DEFINE CT VALUE HERE - per EUA CT between 5 and 35 is positive
-        ct_value_lb = 5.00
+        # Per Lumira IFU update on 2/1/2021, new lower bound is 3
+        ct_value_lb = 3.00
         ct_value_ub = 35.00
 
         # New code
@@ -1956,7 +1957,8 @@ class AIHGdataprocessor:
         df['CT'] = df.loc[:, 'CT'].apply(pd.to_numeric, errors='coerce')
 
         # TODO: DEFINE CT VALUE HERE - per EUA CT between 5 and 35 is positive
-        ct_value_lb = 5.00
+        # Per Lumira IFU update on 2/1/2021, new lower bound is 3
+        ct_value_lb = 3.00
         ct_value_ub = 35.00
 
         # New code
